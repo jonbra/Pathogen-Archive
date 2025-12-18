@@ -4,7 +4,7 @@ hidden = [".config", ".git", "generated-icon.png", "node_modules", "dist"]
 
 [nix]
 channel = "stable-24_05"
-packages = ["R", "rPackages.jsonlite", "rPackages.ggplot2"]
+packages = ["R", "rPackages.jsonlite", "rPackages.ggplot2", "mafft", "iqtree"]
 
 [[ports]]
 localPort = 5000

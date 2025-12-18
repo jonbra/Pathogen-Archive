@@ -135,83 +135,126 @@ async function runAnalysis(analysisId: number, type: string, sequenceIds: number
 
     // Fetch sequences
     const sequences = await storage.getSequencesByIds(sequenceIds);
-    const inputData = {
-      type,
-      sequences: sequences.map(s => ({
-        id: s.id,
-        accession: s.accession,
-        sequence: s.sequence
-      }))
-    };
 
-    // Write input to temp file
-    const inputPath = path.resolve(`/tmp/analysis_${analysisId}_input.json`);
-    const outputPath = path.resolve(`/tmp/analysis_${analysisId}_output.json`);
-    await fs.promises.writeFile(inputPath, JSON.stringify(inputData));
-
-    // Run R script
-    // Ensure R is installed and script exists
-    const scriptPath = path.resolve('server/scripts/analyze.R');
-    
-    // Check if script exists, if not write a dummy one
-    if (!fs.existsSync(scriptPath)) {
-        await fs.promises.mkdir(path.dirname(scriptPath), { recursive: true });
-        await fs.promises.writeFile(scriptPath, `
-library(jsonlite)
-args <- commandArgs(trailingOnly = TRUE)
-input_path <- args[1]
-output_path <- args[2]
-
-data <- fromJSON(input_path)
-results <- list()
-
-if (data$type == "GC Content") {
-  # Calculate GC content
-  results$data <- lapply(data$sequences$sequence, function(seq) {
-    len <- nchar(seq)
-    gc <- sum(charToRaw(seq) %in% charToRaw("GCgc"))
-    return(gc / len * 100)
-  })
-  results$summary <- summary(unlist(results$data))
-} else {
-  results$message <- "Unknown analysis type"
-}
-
-write_json(results, output_path, auto_unbox = TRUE)
-        `);
+    if (type === 'GC Content') {
+      await runGCContentAnalysis(analysisId, sequences);
+    } else if (type === 'MSA' || type === 'Multiple Sequence Alignment') {
+      await runMSAAnalysis(analysisId, sequences);
+    } else if (type === 'Phylogeny') {
+      await runPhylogenyAnalysis(analysisId, sequences);
+    } else {
+      throw new Error(`Unknown analysis type: ${type}`);
     }
-
-    try {
-        await execAsync(`Rscript ${scriptPath} ${inputPath} ${outputPath}`);
-        
-        if (fs.existsSync(outputPath)) {
-            const results = JSON.parse(await fs.promises.readFile(outputPath, 'utf-8'));
-            await storage.updateAnalysisStatus(analysisId, 'completed', results);
-            // cleanup
-            await fs.promises.unlink(outputPath);
-        } else {
-            throw new Error("Output file not generated");
-        }
-    } catch (rError) {
-        console.error("R Execution Error:", rError);
-        // Fallback to JS analysis if R fails or not installed
-        // Simple GC calc in JS
-        const results = {
-            data: sequences.map(s => {
-                const gc = (s.sequence.match(/[GCgc]/g) || []).length;
-                return (gc / s.sequence.length) * 100;
-            })
-        };
-        await storage.updateAnalysisStatus(analysisId, 'completed', { 
-            message: "R analysis failed, fell back to JS", 
-            ...results 
-        });
-    }
-
-    await fs.promises.unlink(inputPath);
 
   } catch (err) {
     console.error("Analysis failed", err);
     await storage.updateAnalysisStatus(analysisId, 'failed', { error: String(err) });
+  }
+}
+
+async function runGCContentAnalysis(analysisId: number, sequences: any[]) {
+  const results = {
+    type: 'GC Content',
+    data: sequences.map(s => ({
+      accession: s.accession,
+      gcContent: ((s.sequence.match(/[GCgc]/g) || []).length / s.sequence.length) * 100
+    }))
+  };
+  const summary = results.data.map(d => d.gcContent);
+  results['mean'] = summary.reduce((a, b) => a + b, 0) / summary.length;
+  await storage.updateAnalysisStatus(analysisId, 'completed', results);
+}
+
+async function runMSAAnalysis(analysisId: number, sequences: any[]) {
+  const workdir = `/tmp/msa_${analysisId}`;
+  const inputFasta = path.join(workdir, 'input.fasta');
+  const outputFasta = path.join(workdir, 'output.fasta');
+
+  try {
+    await fs.promises.mkdir(workdir, { recursive: true });
+
+    // Write input FASTA
+    const fastaContent = sequences.map(s => `>${s.accession}\n${s.sequence}`).join('\n');
+    await fs.promises.writeFile(inputFasta, fastaContent);
+
+    // Run MAFFT
+    await execAsync(`mafft --auto ${inputFasta} > ${outputFasta}`, { cwd: workdir });
+
+    // Parse aligned sequences
+    const alignedContent = await fs.promises.readFile(outputFasta, 'utf-8');
+    const alignedSequences = alignedContent.split('>').slice(1).map(block => {
+      const lines = block.split('\n');
+      const accession = lines[0].trim();
+      const sequence = lines.slice(1).join('').replace(/\s/g, '');
+      return { accession, sequence };
+    });
+
+    const results = {
+      type: 'Multiple Sequence Alignment',
+      alignmentLength: alignedSequences[0]?.sequence.length || 0,
+      sequenceCount: alignedSequences.length,
+      sequences: alignedSequences
+    };
+
+    await storage.updateAnalysisStatus(analysisId, 'completed', results);
+
+    // Cleanup
+    await fs.promises.rm(workdir, { recursive: true, force: true });
+  } catch (err) {
+    console.error("MSA failed:", err);
+    await fs.promises.rm(workdir, { recursive: true, force: true });
+    throw err;
+  }
+}
+
+async function runPhylogenyAnalysis(analysisId: number, sequences: any[]) {
+  const workdir = `/tmp/phylo_${analysisId}`;
+  const inputFasta = path.join(workdir, 'input.fasta');
+  const msaFasta = path.join(workdir, 'msa.fasta');
+  const treeFile = path.join(workdir, 'tree.treefile');
+
+  try {
+    await fs.promises.mkdir(workdir, { recursive: true });
+
+    // Write input FASTA
+    const fastaContent = sequences.map(s => `>${s.accession}\n${s.sequence}`).join('\n');
+    await fs.promises.writeFile(inputFasta, fastaContent);
+
+    // Step 1: MSA with MAFFT
+    await execAsync(`mafft --auto ${inputFasta} > ${msaFasta}`, { cwd: workdir });
+
+    // Step 2: Phylogeny with IQ-TREE
+    await execAsync(`iqtree2 -s ${msaFasta} -m GTR+G -nt AUTO -quiet`, { cwd: workdir, timeout: 60000 });
+
+    // Parse tree file
+    let treeContent = '';
+    const possibleTreeFiles = [
+      path.join(workdir, 'msa.fasta.treefile'),
+      treeFile
+    ];
+
+    for (const file of possibleTreeFiles) {
+      if (fs.existsSync(file)) {
+        treeContent = await fs.promises.readFile(file, 'utf-8');
+        break;
+      }
+    }
+
+    const results = {
+      type: 'Phylogeny',
+      sequenceCount: sequences.length,
+      tree: treeContent.trim(),
+      method: 'GTR+G model with IQ-TREE',
+      timestamp: new Date().toISOString()
+    };
+
+    await storage.updateAnalysisStatus(analysisId, 'completed', results);
+
+    // Cleanup
+    await fs.promises.rm(workdir, { recursive: true, force: true });
+  } catch (err) {
+    console.error("Phylogeny analysis failed:", err);
+    await fs.promises.rm(workdir, { recursive: true, force: true });
+    throw err;
   }
 }
