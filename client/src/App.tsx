@@ -3,16 +3,29 @@ import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { Layout } from "@/components/layout";
+
+import Dashboard from "@/pages/dashboard";
+import UploadPage from "@/pages/upload";
+import BrowsePage from "@/pages/browse";
+import AnalysisListPage from "@/pages/analysis-list";
+import NewAnalysisPage from "@/pages/analysis-new";
+import AnalysisDetailPage from "@/pages/analysis-detail";
 import NotFound from "@/pages/not-found";
 
 function Router() {
   return (
-    <Switch>
-      {/* Add pages below */}
-      {/* <Route path="/" component={Home}/> */}
-      {/* Fallback to 404 */}
-      <Route component={NotFound} />
-    </Switch>
+    <Layout>
+      <Switch>
+        <Route path="/" component={Dashboard} />
+        <Route path="/upload" component={UploadPage} />
+        <Route path="/browse" component={BrowsePage} />
+        <Route path="/analyses" component={AnalysisListPage} />
+        <Route path="/analyses/new" component={NewAnalysisPage} />
+        <Route path="/analyses/:id" component={AnalysisDetailPage} />
+        <Route component={NotFound} />
+      </Switch>
+    </Layout>
   );
 }
 
