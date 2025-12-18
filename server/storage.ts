@@ -3,15 +3,17 @@ import {
   sequences, analyses,
   type Sequence, type InsertSequence,
   type Analysis, type InsertAnalysis,
-  type CreateAnalysisRequest
+  type CreateAnalysisRequest,
+  type SequenceSearchParams
 } from "@shared/schema";
-import { eq, desc } from "drizzle-orm";
+import { eq, desc, and, or, isNull, isNotNull } from "drizzle-orm";
 
 export interface IStorage {
   // Sequences
   getSequences(): Promise<Sequence[]>;
   getSequence(id: number): Promise<Sequence | undefined>;
   getSequencesByIds(ids: number[]): Promise<Sequence[]>;
+  searchSequences(params: SequenceSearchParams): Promise<Sequence[]>;
   createSequence(sequence: InsertSequence): Promise<Sequence>;
   deleteSequence(id: number): Promise<void>;
 
@@ -53,6 +55,41 @@ export class DatabaseStorage implements IStorage {
 
   async deleteSequence(id: number): Promise<void> {
     await db.delete(sequences).where(eq(sequences.id, id));
+  }
+
+  async searchSequences(params: SequenceSearchParams): Promise<Sequence[]> {
+    let query = db.select().from(sequences);
+    const filters: any[] = [];
+
+    if (params.sequenceId) {
+      filters.push(eq(sequences.sequenceId, params.sequenceId));
+    }
+    if (params.samplingDate) {
+      filters.push(eq(sequences.samplingDate, params.samplingDate));
+    }
+    if (params.country) {
+      filters.push(eq(sequences.country, params.country));
+    }
+    if (params.genotype) {
+      filters.push(eq(sequences.genotype, params.genotype));
+    }
+    if (params.outbreak) {
+      filters.push(eq(sequences.outbreak, params.outbreak));
+    }
+
+    if (params.requireComplete) {
+      filters.push(isNotNull(sequences.sequenceId));
+      filters.push(isNotNull(sequences.samplingDate));
+      filters.push(isNotNull(sequences.country));
+      filters.push(isNotNull(sequences.genotype));
+      filters.push(isNotNull(sequences.outbreak));
+    }
+
+    if (filters.length > 0) {
+      query = query.where(and(...filters));
+    }
+
+    return await query.orderBy(desc(sequences.createdAt));
   }
 
   async getAnalyses(): Promise<Analysis[]> {

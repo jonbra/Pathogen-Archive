@@ -23,10 +23,16 @@ export const api = {
         200: z.array(z.custom<typeof sequences.$inferSelect>()),
       },
     },
+    search: {
+      method: 'GET' as const,
+      path: '/api/sequences/search',
+      responses: {
+        200: z.array(z.custom<typeof sequences.$inferSelect>()),
+      },
+    },
     upload: {
       method: 'POST' as const,
       path: '/api/sequences/upload',
-      // Multipart input not easily typed here, handled in route
       responses: {
         201: z.object({ count: z.number(), message: z.string() }),
         400: errorSchemas.validation,

@@ -23,6 +23,19 @@ export async function registerRoutes(
     res.json(sequences);
   });
 
+  app.get(api.sequences.search.path, async (req, res) => {
+    const { sequenceId, samplingDate, country, genotype, outbreak, requireComplete } = req.query;
+    const result = await storage.searchSequences({
+      sequenceId: sequenceId as string | undefined,
+      samplingDate: samplingDate as string | undefined,
+      country: country as string | undefined,
+      genotype: genotype as string | undefined,
+      outbreak: outbreak as string | undefined,
+      requireComplete: requireComplete === 'true'
+    });
+    res.json(result);
+  });
+
   app.post(api.sequences.upload.path, upload.fields([{ name: 'fasta' }, { name: 'metadata' }]), async (req, res) => {
     try {
       const files = req.files as { [fieldname: string]: Express.Multer.File[] };
@@ -61,11 +74,16 @@ export async function registerRoutes(
         const seq = lines.slice(1).join('').replace(/\s/g, '');
         
         // Find metadata
-        const meta = metadata.find(m => m.Accession === accession || m.id === accession) || {};
+        const meta = metadata.find(m => m.Accession === accession || m.accession === accession || m.sequence_id === accession) || {};
         
         return {
           accession,
           sequence: seq,
+          sequenceId: meta.sequence_id || meta.sequenceId || undefined,
+          samplingDate: meta.sampling_date || meta.samplingDate || undefined,
+          country: meta.country || undefined,
+          genotype: meta.genotype || undefined,
+          outbreak: meta.outbreak || undefined,
           metadata: meta,
           filename: fastaFile.originalname
         };
