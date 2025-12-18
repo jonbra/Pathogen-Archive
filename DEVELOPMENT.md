@@ -99,11 +99,17 @@ This is a full-stack TypeScript application with clear separation of concerns:
 │
 ├── server/                          # Backend code
 │   ├── index.ts                     # Express app setup
-│   ├── routes.ts                    # API routes (handlers)
+│   ├── routes.ts                    # API routes (handlers) + dispatcher
 │   ├── storage.ts                   # Database abstraction layer
 │   ├── db.ts                        # Database connection (Drizzle)
 │   ├── vite.ts                      # Vite dev server integration
 │   ├── static.ts                    # Static file serving
+│   ├── analyses/                    # Analysis implementations (modular)
+│   │   ├── index.ts                 # Exports all analysis handlers
+│   │   ├── types.ts                 # Shared types for analysis handlers
+│   │   ├── gcContent.ts             # GC Content analysis
+│   │   ├── msa.ts                   # Multiple Sequence Alignment (MAFFT)
+│   │   └── phylogeny.ts             # Phylogenetic inference (MAFFT + IQ-TREE)
 │   └── scripts/
 │       └── analyze.R                # R analysis scripts (generated)
 │
@@ -244,19 +250,57 @@ Response: Analysis (status: 'pending')
 
 ## Adding New Analyses
 
-To add a new analysis type (e.g., "Codon Usage Bias"):
+Each analysis is in its own file in `server/analyses/` for better modularity and maintainability.
 
-### 1. Update Schema (`shared/schema.ts`)
+### 1. Create Analysis File
 
-Ensure your analysis type is in the enum:
+Create `server/analyses/myAnalysis.ts`:
+
 ```typescript
-// In routes.ts
-z.enum(['GC Content', 'MSA', 'Phylogeny', 'Codon Usage'])
+import { type AnalysisSequence, type AnalysisHandler } from "./types";
+
+/**
+ * My custom analysis description.
+ * 
+ * Results:
+ * - field1: description
+ * - field2: description
+ */
+export const runMyAnalysis: AnalysisHandler = async (analysisId, sequences, storage) => {
+  try {
+    // 1. Implement analysis logic
+    const results = sequences.map(s => {
+      // Do analysis on s.sequence
+      return { accession: s.accession, result: "..." };
+    });
+
+    // 2. Store results
+    await storage.updateAnalysisStatus(analysisId, 'completed', {
+      type: 'My Analysis',
+      data: results
+    });
+  } catch (err) {
+    throw err;  // Will be caught by dispatcher and marked as failed
+  }
+};
 ```
 
-### 2. Implement Backend Handler (`server/routes.ts`)
+### 2. Export Handler
 
-In the `runAnalysis()` function, add a branch:
+Update `server/analyses/index.ts`:
+
+```typescript
+export { runGCContentAnalysis } from "./gcContent";
+export { runMSAAnalysis } from "./msa";
+export { runPhylogenyAnalysis } from "./phylogeny";
+export { runMyAnalysis } from "./myAnalysis";  // Add your handler
+export type { AnalysisHandler, AnalysisSequence } from "./types";
+```
+
+### 3. Register Dispatcher
+
+Update `server/routes.ts` in the `runAnalysis()` function:
+
 ```typescript
 async function runAnalysis(analysisId: number, type: string, sequenceIds: number[]) {
   try {
@@ -264,35 +308,32 @@ async function runAnalysis(analysisId: number, type: string, sequenceIds: number
     const sequences = await storage.getSequencesByIds(sequenceIds);
 
     if (type === 'GC Content') {
-      await runGCContentAnalysis(analysisId, sequences);
-    } else if (type === 'Codon Usage') {
-      await runCodonUsageAnalysis(analysisId, sequences);
+      await runGCContentAnalysis(analysisId, sequences, storage);
+    } else if (type === 'My Analysis') {
+      await runMyAnalysis(analysisId, sequences, storage);  // Add branch
     }
     // ... more types
   } catch (err) {
     await storage.updateAnalysisStatus(analysisId, 'failed', { error: String(err) });
   }
 }
+```
 
-// Add handler function
-async function runCodonUsageAnalysis(analysisId: number, sequences: any[]) {
-  try {
-    // 1. Implement analysis logic
-    const results = sequences.map(s => {
-      // Calculate codon usage for each sequence
-      const codons = extractCodons(s.sequence);
-      return { accession: s.accession, codonUsage: codons };
-    });
+Also import at the top:
+```typescript
+import { runGCContentAnalysis, runMSAAnalysis, runPhylogenyAnalysis, runMyAnalysis } from "./analyses";
+```
 
-    // 2. Store results
-    await storage.updateAnalysisStatus(analysisId, 'completed', {
-      type: 'Codon Usage',
-      results: results
-    });
-  } catch (err) {
-    throw err;
-  }
-}
+### 4. Update API Schema
+
+Update `shared/routes.ts`:
+
+```typescript
+input: z.object({
+  type: z.enum(['GC Content', 'MSA', 'Multiple Sequence Alignment', 'Phylogeny', 'My Analysis']),
+  sequenceIds: z.array(z.number()),
+  parameters: z.record(z.any()),
+}),
 ```
 
 ### 3. Update Frontend (`client/src/pages/analysis-new.tsx`)
@@ -302,20 +343,24 @@ Add the new analysis type to the select dropdown:
 <SelectItem value="Codon Usage">Codon Usage Bias</SelectItem>
 ```
 
-### 4. Display Results (`client/src/pages/analysis-detail.tsx`)
+### 5. Update Frontend
 
-Add rendering logic for your new result type:
+**Add to dropdown** (`client/src/pages/analysis-new.tsx`):
 ```typescript
-{analysis.type === 'Codon Usage' && (
+<SelectItem value="My Analysis">My Analysis</SelectItem>
+```
+
+**Display results** (`client/src/pages/analysis-detail.tsx`):
+```typescript
+{analysis.type === 'My Analysis' && (
   <div className="space-y-4">
-    <h3>Codon Usage Results</h3>
-    {/* Render codon usage data here */}
+    <h3>My Analysis Results</h3>
     <Table>
       <TableBody>
         {results.map(r => (
           <TableRow key={r.accession}>
             <TableCell>{r.accession}</TableCell>
-            <TableCell>{JSON.stringify(r.codonUsage)}</TableCell>
+            <TableCell>{JSON.stringify(r.result)}</TableCell>
           </TableRow>
         ))}
       </TableBody>
@@ -323,6 +368,35 @@ Add rendering logic for your new result type:
   </div>
 )}
 ```
+
+### Architecture Benefits
+
+Separating analyses into individual files provides:
+
+- **Modularity**: Each analysis is independent and can be developed/tested separately
+- **Scalability**: Adding new analyses is straightforward and follows a clear pattern
+- **Maintainability**: Changes to one analysis don't affect others
+- **Discoverability**: New developers can quickly find and understand specific analyses
+- **Reusability**: Analysis handlers can be tested or reused independently
+
+### Analysis Handler Signature
+
+All handlers follow this interface:
+
+```typescript
+export interface AnalysisHandler {
+  (analysisId: number, sequences: AnalysisSequence[], storage: IStorage): Promise<void>;
+}
+```
+
+Where:
+- `analysisId`: Unique analysis identifier (for storing results)
+- `sequences`: Array of {id, accession, sequence}
+- `storage`: Database access (for updating status/results)
+
+Handler MUST call `storage.updateAnalysisStatus()` with:
+- `'completed'` + results object on success
+- Or let exception bubble up (automatically marked as `'failed'`)
 
 ## Adding New Metadata Fields
 
