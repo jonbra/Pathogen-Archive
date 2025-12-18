@@ -13,6 +13,10 @@ A full-stack application for managing, analyzing, and exploring viral genome seq
   - [Running Analyses](#running-analyses)
 - [Features](#features)
 - [System Requirements](#system-requirements)
+- [Deployment](#deployment)
+  - [Remote Linux Server](#remote-linux-server)
+  - [SSH Tunnel from Windows PowerShell](#ssh-tunnel-from-windows-powershell)
+- [Troubleshooting](#troubleshooting)
 
 ## Quick Start
 
@@ -288,6 +292,351 @@ Query parameters:
 - **GC Content**: <1 second
 - **MSA**: 1-10 seconds depending on sequence count/length
 - **Phylogeny**: 10-60 seconds (may timeout for >500 sequences)
+
+## Deployment
+
+### Remote Linux Server
+
+Deploy this application on a remote Linux server using Node.js and PostgreSQL.
+
+#### Prerequisites on Server
+
+1. **Ubuntu/Debian-based System**
+   ```bash
+   sudo apt update
+   sudo apt install -y nodejs npm postgresql postgresql-contrib
+   ```
+
+2. **Install MAFFT and IQ-TREE**
+   ```bash
+   sudo apt install -y mafft iqtree
+   ```
+
+3. **Verify installations:**
+   ```bash
+   mafft --version
+   iqtree2 --version
+   node --version
+   ```
+
+#### Step 1: Prepare the Server
+
+1. **Create application directory:**
+   ```bash
+   mkdir -p ~/virus-genome-db
+   cd ~/virus-genome-db
+   ```
+
+2. **Clone or upload your application code**
+
+3. **Install dependencies:**
+   ```bash
+   npm install
+   npm run build
+   ```
+
+#### Step 2: Set up PostgreSQL
+
+1. **Create database and user:**
+   ```bash
+   sudo -u postgres psql
+   ```
+
+   In PostgreSQL shell:
+   ```sql
+   CREATE DATABASE virus_genomes;
+   CREATE USER app_user WITH PASSWORD 'your_secure_password';
+   ALTER ROLE app_user SET client_encoding TO 'utf8';
+   ALTER ROLE app_user SET default_transaction_isolation TO 'read committed';
+   ALTER ROLE app_user SET default_transaction_deferrable TO on;
+   ALTER ROLE app_user SET default_transaction_level TO '4';
+   GRANT ALL PRIVILEGES ON DATABASE virus_genomes TO app_user;
+   \q
+   ```
+
+2. **Initialize database schema:**
+   ```bash
+   export DATABASE_URL="postgresql://app_user:your_secure_password@localhost:5432/virus_genomes"
+   npm run db:push
+   ```
+
+3. **PostgreSQL must listen on localhost AND network interface:**
+   ```bash
+   sudo nano /etc/postgresql/15/main/postgresql.conf
+   ```
+   
+   Find and update:
+   ```
+   listen_addresses = 'localhost,0.0.0.0'
+   ```
+   
+   Then update connection settings:
+   ```bash
+   sudo nano /etc/postgresql/15/main/pg_hba.conf
+   ```
+   
+   Add this line to allow tunnel connections:
+   ```
+   host    virus_genomes   app_user    127.0.0.1/32            md5
+   ```
+   
+   Restart PostgreSQL:
+   ```bash
+   sudo systemctl restart postgresql
+   ```
+
+#### Step 3: Run the Application
+
+**Option A: Manual (Development)**
+```bash
+export NODE_ENV=production
+export DATABASE_URL="postgresql://app_user:your_secure_password@localhost:5432/virus_genomes"
+npm run start
+# App runs on http://your_server_ip:5000
+```
+
+**Option B: Using PM2 (Production Recommended)**
+
+1. **Install PM2 globally:**
+   ```bash
+   sudo npm install -g pm2
+   ```
+
+2. **Create ecosystem config** (`ecosystem.config.js`):
+   ```javascript
+   module.exports = {
+     apps: [
+       {
+         name: 'virus-genome-db',
+         script: './dist/index.cjs',
+         instances: 1,
+         exec_mode: 'cluster',
+         env: {
+           NODE_ENV: 'production',
+           DATABASE_URL: 'postgresql://app_user:your_password@localhost:5432/virus_genomes'
+         },
+         max_memory_restart: '1G',
+         error_file: './logs/err.log',
+         out_file: './logs/out.log',
+         log_file: './logs/combined.log',
+         time_format: 'YYYY-MM-DD HH:mm:ss Z'
+       }
+     ]
+   };
+   ```
+
+3. **Start application:**
+   ```bash
+   pm2 start ecosystem.config.js
+   pm2 save
+   pm2 startup
+   ```
+
+4. **Monitor:**
+   ```bash
+   pm2 monit
+   pm2 logs virus-genome-db
+   ```
+
+**Option C: Using systemd (Production Alternative)**
+
+Create `/etc/systemd/system/virus-genome-db.service`:
+```ini
+[Unit]
+Description=Virus Genome Database
+After=network.target postgresql.service
+
+[Service]
+Type=simple
+User=yourusername
+WorkingDirectory=/home/yourusername/virus-genome-db
+Environment="NODE_ENV=production"
+Environment="DATABASE_URL=postgresql://app_user:password@localhost:5432/virus_genomes"
+ExecStart=/usr/bin/node dist/index.cjs
+Restart=always
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target
+```
+
+Enable and start:
+```bash
+sudo systemctl daemon-reload
+sudo systemctl enable virus-genome-db
+sudo systemctl start virus-genome-db
+systemctl status virus-genome-db
+```
+
+#### Step 4: Firewall Configuration
+
+1. **Allow SSH and HTTP/HTTPS:**
+   ```bash
+   sudo ufw allow 22/tcp
+   sudo ufw allow 80/tcp
+   sudo ufw allow 443/tcp
+   sudo ufw enable
+   ```
+
+2. **DO NOT expose PostgreSQL port 5432** - only access via SSH tunnel
+
+#### Step 5: Reverse Proxy (Optional but Recommended)
+
+Set up Nginx to proxy requests to your Node.js app (port 5000):
+
+```bash
+sudo apt install nginx
+```
+
+Create `/etc/nginx/sites-available/virus-genome`:
+```nginx
+server {
+    listen 80;
+    server_name your_domain.com;
+
+    location / {
+        proxy_pass http://localhost:5000;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection 'upgrade';
+        proxy_set_header Host $host;
+        proxy_cache_bypass $http_upgrade;
+    }
+}
+```
+
+Enable:
+```bash
+sudo ln -s /etc/nginx/sites-available/virus-genome /etc/nginx/sites-enabled/
+sudo nginx -t
+sudo systemctl restart nginx
+```
+
+### SSH Tunnel from Windows PowerShell
+
+Access your remote PostgreSQL database from your local Windows machine through an SSH tunnel, allowing you to use local database tools while the database is on the remote server.
+
+#### Prerequisites
+
+1. **PuTTY or native SSH** (Windows 10+ has OpenSSH):
+   ```powershell
+   Get-WindowsCapability -Online | Where-Object {$_.Name -like 'OpenSSH*'}
+   ```
+   
+   If not installed:
+   ```powershell
+   Add-WindowsCapability -Online -Name OpenSSH.Client~~~~0.0.1.0
+   ```
+
+2. **SSH key or password** for your remote server
+
+#### Setup SSH Tunnel
+
+**Using PowerShell (Recommended):**
+
+```powershell
+# Variables
+$RemoteUser = "yourusername"
+$RemoteHost = "your_server_ip"
+$RemotePort = 5432
+$LocalPort = 5432
+
+# Create SSH tunnel
+ssh -L ${LocalPort}:localhost:${RemotePort} ${RemoteUser}@${RemoteHost}
+```
+
+**With SSH key:**
+```powershell
+$KeyPath = "C:\path\to\your\private_key"
+ssh -i $KeyPath -L 5432:localhost:5432 yourusername@your_server_ip
+```
+
+**Run in background (as scheduled task):**
+
+Create PowerShell script `start-tunnel.ps1`:
+```powershell
+$RemoteUser = "yourusername"
+$RemoteHost = "your_server_ip"
+$KeyPath = "C:\path\to\private_key"
+
+# Keep tunnel alive, restart on disconnect
+while ($true) {
+    Write-Host "Starting SSH tunnel..."
+    ssh -i $KeyPath -L 5432:localhost:5432 ${RemoteUser}@${RemoteHost}
+    Write-Host "Tunnel disconnected. Reconnecting in 5 seconds..."
+    Start-Sleep -Seconds 5
+}
+```
+
+Run in PowerShell:
+```powershell
+powershell -ExecutionPolicy Bypass -File C:\path\to\start-tunnel.ps1
+```
+
+#### Connect to Database Locally
+
+Once tunnel is established, connect using local connection:
+
+**Connection String for Applications:**
+```
+postgresql://app_user:your_password@127.0.0.1:5432/virus_genomes
+```
+
+**Using psql (if installed):**
+```powershell
+psql -h 127.0.0.1 -U app_user -d virus_genomes
+```
+
+**Using DBeaver (GUI Database Client - Recommended):**
+
+1. Install [DBeaver Community Edition](https://dbeaver.io/)
+2. Create new PostgreSQL connection:
+   - **Host:** 127.0.0.1
+   - **Port:** 5432
+   - **Database:** virus_genomes
+   - **Username:** app_user
+   - **Password:** your_password
+3. Test connection (should work after tunnel is running)
+
+**Using pgAdmin (GUI Database Admin):**
+
+1. Install [pgAdmin](https://www.pgadmin.org/) on Windows
+2. Create new server connection with same settings as above
+
+#### Access Web Application from Windows
+
+Once tunnel is running, the application is still accessible at:
+```
+http://your_server_ip:5000
+```
+
+No tunnel needed for web access - only for database access.
+
+#### Troubleshooting SSH Tunnel
+
+**"Connection refused" error:**
+- Ensure PostgreSQL is running on server: `sudo systemctl status postgresql`
+- Verify listen_addresses includes 0.0.0.0: `sudo nano /etc/postgresql/15/main/postgresql.conf`
+- Check firewall on server allows postgres: `sudo ufw status`
+
+**"Permission denied" when using SSH key:**
+```powershell
+# Fix key permissions (should be readable only by user)
+icacls "C:\path\to\private_key" /inheritance:r /grant:r "%USERNAME%`:F"
+```
+
+**Tunnel disconnects randomly:**
+- Add keep-alive options:
+```powershell
+ssh -o ServerAliveInterval=60 -o ServerAliveCountMax=10 -L 5432:localhost:5432 user@host
+```
+
+**Port 5432 already in use:**
+```powershell
+# Use different local port
+ssh -L 5433:localhost:5432 user@host
+# Then connect to: 127.0.0.1:5433
+```
 
 ## Support
 
