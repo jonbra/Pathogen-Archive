@@ -49,17 +49,21 @@ export async function registerRoutes(
 
       if (metadataFile) {
         const metadataContent = await fs.promises.readFile(metadataFile.path, 'utf-8');
-        // Simple CSV parser
-        const lines = metadataContent.split('\n');
-        const headers = lines[0].split(',').map(h => h.trim());
-        metadata = lines.slice(1).filter(l => l.trim()).map(line => {
-          const values = line.split(',');
-          const obj: Record<string, any> = {};
-          headers.forEach((h, i) => {
-            obj[h] = values[i]?.trim();
-          });
-          return obj;
-        });
+        // Lightweight CSV parser that normalizes headers and strips quotes
+        const lines = metadataContent.split(/\r?\n/).filter(l => l.trim());
+        if (lines.length > 0) {
+          const rawHeaders = lines[0].split(',');
+          const headers = rawHeaders.map(h => h.trim().replace(/^\"|\"$/g, '').toLowerCase());
+          metadata = lines.slice(1).map(line => {
+            const values = line.split(',');
+            const obj: Record<string, any> = {};
+            headers.forEach((h, i) => {
+              const raw = values[i] ?? '';
+              obj[h] = String(raw).trim().replace(/^\"|\"$/g, '');
+            });
+            return obj;
+          }).filter(m => Object.keys(m).length > 0);
+        }
       }
 
       // Parse FASTA
@@ -72,13 +76,21 @@ export async function registerRoutes(
         const seq = lines.slice(1).join('').replace(/\s/g, '');
         
         // Find metadata
-        const meta = metadata.find(m => m.Accession === accession || m.accession === accession || m.sequence_id === accession) || {};
-        
+        // metadata keys are normalized to lowercase in parser
+        const meta = metadata.find(m => {
+          return (
+            m.accession === accession ||
+            m['sequence_id'] === accession ||
+            m.sequenceid === accession ||
+            m['sequence id'] === accession
+          );
+        }) || {};
+
         return {
           accession,
           sequence: seq,
-          sequenceId: meta.sequence_id || meta.sequenceId || undefined,
-          samplingDate: meta.sampling_date || meta.samplingDate || undefined,
+          sequenceId: meta['sequence_id'] || meta.sequenceid || undefined,
+          samplingDate: meta['sampling_date'] || meta['samplingdate'] || meta['sampling date'] || undefined,
           country: meta.country || undefined,
           genotype: meta.genotype || undefined,
           outbreak: meta.outbreak || undefined,
@@ -88,16 +100,27 @@ export async function registerRoutes(
       });
 
       let count = 0;
+      let skipped = 0;
       for (const seq of sequencesList) {
-        await storage.createSequence(seq);
-        count++;
+        try {
+          await storage.createSequence(seq);
+          count++;
+        } catch (err: any) {
+          // Skip duplicates, report others
+          if (err && err.code === 'DUPLICATE_ACCESSION') {
+            skipped++;
+            continue;
+          }
+          throw err;
+        }
       }
 
       // Cleanup
       await fs.promises.unlink(fastaFile.path);
       if (metadataFile) await fs.promises.unlink(metadataFile.path);
 
-      res.status(201).json({ count, message: `Uploaded ${count} sequences` });
+      const message = skipped > 0 ? `Uploaded ${count} sequences, skipped ${skipped} duplicates` : `Uploaded ${count} sequences`;
+      res.status(201).json({ count, skipped, message });
     } catch (err) {
       console.error(err);
       res.status(500).json({ message: 'Internal Server Error' });

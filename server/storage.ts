@@ -49,6 +49,16 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createSequence(sequence: InsertSequence): Promise<Sequence> {
+    // Prevent duplicate accession entries
+    if (sequence.accession) {
+      const [existing] = await db.select().from(sequences).where(eq(sequences.accession, sequence.accession));
+      if (existing) {
+        const err: any = new Error(`Duplicate accession: ${sequence.accession}`);
+        err.code = 'DUPLICATE_ACCESSION';
+        throw err;
+      }
+    }
+
     const [seq] = await db.insert(sequences).values(sequence).returning();
     return seq;
   }
