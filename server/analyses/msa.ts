@@ -30,12 +30,23 @@ export const runMSAAnalysis: AnalysisHandler = async (analysisId, sequences, sto
     await fs.promises.writeFile(inputFasta, fastaContent);
     log(`MSA: Wrote ${sequences.length} sequences to ${inputFasta}`, "msa");
 
-    // Run MAFFT with auto algorithm selection
-    const msaCommand = `mafft --auto ${inputFasta} > ${outputFasta}`;
+    // Run MAFFT with auto algorithm selection, capturing output in Node
+    const msaCommand = `mafft --auto ${inputFasta}`;
     log(`MSA: Executing: ${msaCommand}`, "msa");
-    
     try {
-      await executeInCondaEnv(msaCommand, "bioinformatics", workdir);
+      // Use bash shell for conda run
+      const { exec } = await import("child_process");
+      const { promisify } = await import("util");
+      const execAsync = promisify(exec);
+      let result;
+      try {
+        // Try conda run first
+        result = await execAsync(`conda run -n bioinformatics ${msaCommand}`, { cwd: workdir, shell: "/bin/bash", maxBuffer: 10 * 1024 * 1024 });
+      } catch (condaErr) {
+        log(`Conda env or command not found, trying direct execution: ${msaCommand}`, "bioinformatics");
+        result = await execAsync(msaCommand, { cwd: workdir, shell: "/bin/bash", maxBuffer: 10 * 1024 * 1024 });
+      }
+      await fs.promises.writeFile(outputFasta, result.stdout);
       log(`MSA: MAFFT completed successfully`, "msa");
     } catch (condaErr) {
       const setupInfo = getSetupInstructions();
