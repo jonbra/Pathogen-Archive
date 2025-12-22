@@ -3,6 +3,17 @@ import { registerRoutes } from "./routes";
 import { serveStatic } from "./static";
 import { createServer } from "http";
 
+// Global handlers to avoid process exit during debugging; these will log
+// unhandled promise rejections and uncaught exceptions so the server can
+// remain alive while we diagnose issues (do not rely on this in production).
+process.on('unhandledRejection', (reason) => {
+  console.error('UnhandledPromiseRejection:', reason);
+});
+
+process.on('uncaughtException', (err) => {
+  console.error('UncaughtException:', err);
+});
+
 const app = express();
 const httpServer = createServer(app);
 
@@ -67,7 +78,9 @@ app.use((req, res, next) => {
     const message = err.message || "Internal Server Error";
 
     res.status(status).json({ message });
-    throw err;
+    console.error('Unhandled error in request handler:', err);
+    // Do not rethrow here - rethrowing crashes the whole process during runtime
+    // and prevents the server from returning a proper 5xx response.
   });
 
   // importantly only setup vite in development and after
