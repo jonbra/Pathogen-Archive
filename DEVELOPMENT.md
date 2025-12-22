@@ -67,10 +67,34 @@ This is a full-stack TypeScript application with clear separation of concerns:
 - PostgreSQL (Neon serverless)
 - Drizzle-kit (migrations)
 
-**External:**
+**External Tools:**
 - MAFFT v7+ (MSA)
 - IQ-TREE v2+ (phylogeny)
 - R 3.6+ (optional analysis)
+
+### Setting Up Bioinformatics Tools with Conda
+
+For local Ubuntu server deployments, install tools via conda:
+
+```bash
+# Create conda environment with bioinformatics tools
+conda create -n bioinformatics -c bioconda -c conda-forge mafft iqtree
+
+# Or install tools individually
+conda create -n bioinformatics python
+conda activate bioinformatics
+conda install -c bioconda mafft
+conda install -c bioconda iqtree
+
+# Verify installation
+conda run -n bioinformatics mafft --version
+conda run -n bioinformatics iqtree2 --version
+
+# For R-based analyses (optional)
+conda install -c conda-forge r-base
+```
+
+The application automatically detects and uses conda environments. If tools are not in system PATH, the app will try `conda run -n bioinformatics <tool>`. For custom environment names, modify `server/analyses/conda.ts`.
 
 ## Project Structure
 
