@@ -50,7 +50,7 @@ export const runPhylogenyAnalysis: AnalysisHandler = async (analysisId, sequence
     }
 
     // Step 2: Phylogeny with IQ-TREE (GTR+G model, automatic threading)
-    const iqtreeCommand = `iqtree2 -s ${msaFasta} -m GTR+G -nt AUTO -quiet`;
+    const iqtreeCommand = `iqtree -s ${msaFasta} -m GTR+G -nt AUTO -quiet`;
     log(`Phylogeny: Running IQ-TREE: ${iqtreeCommand}`, "phylogeny");
     
     try {

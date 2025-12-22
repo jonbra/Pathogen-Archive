@@ -27,9 +27,9 @@ const ANALYSIS_TYPES = [
     bgColor: "bg-blue-500/10",
   },
   {
-    id: "alignment_preview",
-    title: "Alignment Preview (Simple)",
-    description: "Quick check of sequence start alignments.",
+    id: "msa",
+    title: "Multiple Sequence Alignment",
+    description: "Align selected sequences using MAFFT.",
     icon: Activity,
     color: "text-purple-500",
     bgColor: "bg-purple-500/10",
@@ -58,16 +58,30 @@ export default function NewAnalysisPage() {
       return;
     }
 
-    createAnalysis({
-      type: selectedType,
-      sequenceIds: Array.from(selectedSequenceIds),
-      parameters: {} // Can extend this form to capture specific params
-    }, {
-      onSuccess: () => {
-        toast({ title: "Analysis Started", description: "Job has been queued successfully." });
-        setLocation("/analyses");
-      }
-    });
+    // Only allow MSA analysis if msa is selected
+    if (selectedType === "msa") {
+      createAnalysis({
+        type: "msa",
+        sequenceIds: Array.from(selectedSequenceIds),
+        parameters: {}
+      }, {
+        onSuccess: () => {
+          toast({ title: "Analysis Started", description: "Job has been queued successfully." });
+          setLocation("/analyses");
+        }
+      });
+    } else if (selectedType === "gc_content" || selectedType === "nucleotide_dist") {
+      createAnalysis({
+        type: selectedType,
+        sequenceIds: Array.from(selectedSequenceIds),
+        parameters: {}
+      }, {
+        onSuccess: () => {
+          toast({ title: "Analysis Started", description: "Job has been queued successfully." });
+          setLocation("/analyses");
+        }
+      });
+    }
   };
 
   return (

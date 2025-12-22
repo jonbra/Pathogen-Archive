@@ -88,7 +88,7 @@ conda install -c bioconda iqtree
 
 # Verify installation
 conda run -n bioinformatics mafft --version
-conda run -n bioinformatics iqtree2 --version
+conda run -n bioinformatics iqtree --version
 
 # For R-based analyses (optional)
 conda install -c conda-forge r-base

@@ -59,7 +59,7 @@ export const api = {
       method: 'POST' as const,
       path: '/api/analyses',
       input: z.object({
-        type: z.enum(['GC Content', 'MSA', 'Multiple Sequence Alignment', 'Phylogeny']),
+        type: z.enum(['GC Content', 'MSA', 'Multiple Sequence Alignment', 'Phylogeny', 'msa']),
         sequenceIds: z.array(z.number()),
         parameters: z.record(z.any()),
       }),

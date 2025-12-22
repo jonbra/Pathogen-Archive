@@ -178,7 +178,7 @@ async function runAnalysis(analysisId: number, type: string, sequenceIds: number
     // Dispatch to appropriate analysis handler
     if (type === 'GC Content') {
       await runGCContentAnalysis(analysisId, sequences, storage);
-    } else if (type === 'MSA' || type === 'Multiple Sequence Alignment') {
+    } else if (type === 'MSA' || type === 'Multiple Sequence Alignment' || type === 'msa') {
       await runMSAAnalysis(analysisId, sequences, storage);
     } else if (type === 'Phylogeny') {
       await runPhylogenyAnalysis(analysisId, sequences, storage);

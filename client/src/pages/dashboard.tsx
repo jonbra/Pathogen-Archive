@@ -3,7 +3,9 @@ import { useAnalyses } from "@/hooks/use-analyses";
 import { Dna, Activity, FileText, Database } from "lucide-react";
 import { StatCard } from "@/components/ui/stat-card";
 import { Link } from "wouter";
+
 import { Skeleton } from "@/components/ui/skeleton";
+import { cn } from "@/lib/utils";
 
 export default function Dashboard() {
   const { data: sequences, isLoading: loadingSeq } = useSequences();

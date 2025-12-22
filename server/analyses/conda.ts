@@ -56,7 +56,7 @@ export async function executeInCondaEnv(
 
 /**
  * Check if a tool is available in the conda environment or system PATH.
- * @param tool - Tool name (e.g., "mafft", "iqtree2")
+ * @param tool - Tool name (e.g., "mafft", "iqtree")
  * @param envName - Optional conda environment name
  * @returns True if tool is available
  */
@@ -104,6 +104,6 @@ conda install -c conda-forge r-base
 
 # Verify installation:
 conda run -n bioinformatics mafft --version
-conda run -n bioinformatics iqtree2 --version
+conda run -n bioinformatics iqtree --version
 `;
 }

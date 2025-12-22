@@ -299,7 +299,7 @@ Query parameters:
 
 ### Analysis Fails
 - Check logs: `npm run dev` shows backend errors
-- Ensure MAFFT/IQ-TREE installed: `which mafft` and `which iqtree2`
+- Ensure MAFFT/IQ-TREE installed: `which mafft` and `which iqtree`
 - For large datasets (>1000 sequences), phylogeny may timeout
 
 ### Search Returns No Results
@@ -341,7 +341,7 @@ Deploy this application on a remote Linux server using Node.js and PostgreSQL.
 3. **Verify installations:**
    ```bash
    mafft --version
-   iqtree2 --version
+   iqtree --version
    node --version
    ```
 
