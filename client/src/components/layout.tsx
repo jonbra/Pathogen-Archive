@@ -28,8 +28,8 @@ export function Layout({ children }: { children: React.ReactNode }) {
                 <Dna className="w-8 h-8" />
               </div>
               <div>
-                <h1 className="font-bold text-lg tracking-tight">ViroBase</h1>
-                <p className="text-xs text-muted-foreground font-medium">Genomic Analytics</p>
+                <h1 className="font-bold text-lg tracking-tight">HAV DB</h1>
+                <p className="text-xs text-muted-foreground font-medium">Hepatitis A Virus genome sequences</p>
               </div>
             </div>
           </div>

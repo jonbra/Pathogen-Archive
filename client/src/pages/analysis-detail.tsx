@@ -1,4 +1,5 @@
 import { useAnalysis } from "@/hooks/use-analyses";
+import { MSAAndTreeResults } from "@/components/analysis";
 import { useRoute } from "wouter";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from "recharts";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -38,6 +39,16 @@ export default function AnalysisDetailPage() {
     }
 
     // --- VISUALIZATIONS FOR RESULTS ---
+
+    // Type: MSA or Phylogeny (show viewers)
+    if ((analysis.type === "msa" || analysis.type === "MSA" || analysis.type === "Multiple Sequence Alignment") && Array.isArray(analysis.results?.alignment)) {
+      // MSA: results.alignment: [{ name, seq }]
+      return <MSAAndTreeResults msa={analysis.results.alignment} />;
+    }
+    if ((analysis.type === "phylogeny" || analysis.type === "Phylogeny") && typeof analysis.results?.tree === "string") {
+      // Phylogeny: results.tree: Newick string, results.alignment: optional
+      return <MSAAndTreeResults msa={analysis.results.alignment} newick={analysis.results.tree} />;
+    }
     
     // Type: GC Content (Example Result Format: { "seq1": 0.45, "seq2": 0.52 })
     if (analysis.type === "gc_content") {

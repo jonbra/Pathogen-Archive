@@ -1,6 +1,6 @@
-# Virus Genome Sequence Database
+# Hepatitis A Genome Sequence Database
 
-A full-stack application for managing, analyzing, and exploring viral genome sequences. Features include sequence upload, metadata-based search, multiple sequence alignment (MSA), and phylogenetic analysis.
+A full-stack application for managing, analyzing, and exploring Hepatitis A virus genome sequences. Features include sequence upload, metadata-based search, multiple sequence alignment (MSA), and phylogenetic analysis.
 
 ## Table of Contents
 
@@ -22,7 +22,7 @@ A full-stack application for managing, analyzing, and exploring viral genome seq
 
 ### Prerequisites
 - Node.js 20+
-- PostgreSQL database (provided via Replit)
+- PostgreSQL database
 - R and required packages (jsonlite, ggplot2)
 - MAFFT (multiple sequence alignment tool)
 - IQ-TREE (phylogenetic inference tool)
