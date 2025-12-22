@@ -1,7 +1,7 @@
 import { useState, useMemo } from "react";
 import { useSequences, useDeleteSequence } from "@/hooks/use-sequences";
 import { useLocation } from "wouter";
-import { Search, Trash2, Filter, ChevronDown, CheckSquare, Square, PlayCircle } from "lucide-react";
+import { Search, Trash2, Filter, ChevronDown, CheckSquare, Square, PlayCircle, ArrowUpDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -24,6 +24,10 @@ import {
   DropdownMenuSeparator
 } from "@/components/ui/dropdown-menu";
 import { useToast } from "@/hooks/use-toast";
+import type { Sequence } from "@shared/schema";
+
+type SortField = "sample_id" | "header" | "year" | "gene" | "length";
+type SortDirection = "asc" | "desc";
 
 export default function BrowsePage() {
   const [, setLocation] = useLocation();
@@ -33,17 +37,98 @@ export default function BrowsePage() {
   
   const [search, setSearch] = useState("");
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
+  const [sortField, setSortField] = useState<SortField | null>(null);
+  const [sortDirection, setSortDirection] = useState<SortDirection>("asc");
 
-  // Filter sequences
-  const filteredSequences = useMemo(() => {
+  // Helper to extract year from samplingDate or metadata
+  const getYear = (seq: Sequence): string => {
+    if (seq.samplingDate) {
+      const parts = seq.samplingDate.split('.');
+      return parts[0] || '';
+    }
+    const year = seq.metadata?.year || seq.metadata?.Year;
+    return year ? String(year) : '';
+  };
+
+  // Helper to extract gene from metadata or genotype
+  const getGene = (seq: Sequence): string => {
+    const gene = seq.metadata?.gene || seq.metadata?.Gene || seq.genotype || '';
+    return gene ? String(gene) : '';
+  };
+
+  // Filter and sort sequences
+  const displaySequences = useMemo(() => {
     if (!sequences) return [];
     const term = search.toLowerCase();
-    return sequences.filter(seq => 
+    
+    let filtered = sequences.filter(seq => 
       seq.accession.toLowerCase().includes(term) || 
+      seq.sequenceId?.toLowerCase().includes(term) ||
       seq.filename.toLowerCase().includes(term) ||
       JSON.stringify(seq.metadata).toLowerCase().includes(term)
     );
-  }, [sequences, search]);
+
+    // Apply sorting
+    if (sortField) {
+      filtered.sort((a, b) => {
+        let aVal: string | number = '';
+        let bVal: string | number = '';
+
+        switch (sortField) {
+          case 'sample_id':
+            aVal = a.sequenceId || '';
+            bVal = b.sequenceId || '';
+            break;
+          case 'header':
+            aVal = a.accession;
+            bVal = b.accession;
+            break;
+          case 'year':
+            aVal = getYear(a);
+            bVal = getYear(b);
+            break;
+          case 'gene':
+            aVal = getGene(a);
+            bVal = getGene(b);
+            break;
+          case 'length':
+            aVal = a.sequence.length;
+            bVal = b.sequence.length;
+            break;
+        }
+
+        if (aVal < bVal) return sortDirection === 'asc' ? -1 : 1;
+        if (aVal > bVal) return sortDirection === 'asc' ? 1 : -1;
+        return 0;
+      });
+    }
+
+    return filtered;
+  }, [sequences, search, sortField, sortDirection]);
+
+  const handleSort = (field: SortField) => {
+    if (sortField === field) {
+      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortField(field);
+      setSortDirection('asc');
+    }
+  };
+
+  const SortableHeader = ({ field, label }: { field: SortField; label: string }) => (
+    <TableHead 
+      className="cursor-pointer hover:bg-muted/50 transition-colors"
+      onClick={() => handleSort(field)}
+      data-testid={`button-sort-${field}`}
+    >
+      <div className="flex items-center gap-2">
+        {label}
+        {sortField === field && (
+          <ArrowUpDown className={`w-4 h-4 transition-transform ${sortDirection === 'desc' ? 'rotate-180' : ''}`} />
+        )}
+      </div>
+    </TableHead>
+  );
 
   const toggleSelect = (id: number) => {
     const next = new Set(selectedIds);
@@ -53,18 +138,15 @@ export default function BrowsePage() {
   };
 
   const toggleAll = () => {
-    if (selectedIds.size === filteredSequences.length) {
+    if (selectedIds.size === displaySequences.length) {
       setSelectedIds(new Set());
     } else {
-      setSelectedIds(new Set(filteredSequences.map(s => s.id)));
+      setSelectedIds(new Set(displaySequences.map(s => s.id)));
     }
   };
 
   const handleAnalysis = () => {
     if (selectedIds.size === 0) return;
-    // In a real app we might pass IDs via context or URL query params
-    // For now we'll store in localStorage or just navigate and let the user re-select if needed
-    // But better: Navigate to analysis page with query param
     const ids = Array.from(selectedIds).join(',');
     setLocation(`/analyses/new?ids=${ids}`);
   };
@@ -137,13 +219,16 @@ export default function BrowsePage() {
             <TableRow>
               <TableHead className="w-[50px]">
                 <Checkbox 
-                  checked={filteredSequences.length > 0 && selectedIds.size === filteredSequences.length}
+                  checked={displaySequences.length > 0 && selectedIds.size === displaySequences.length}
                   onCheckedChange={toggleAll}
+                  data-testid="checkbox-select-all"
                 />
               </TableHead>
-              <TableHead>Accession</TableHead>
-              <TableHead>Length (bp)</TableHead>
-              <TableHead>Metadata</TableHead>
+              <SortableHeader field="sample_id" label="Sample ID" />
+              <SortableHeader field="header" label="Header" />
+              <SortableHeader field="year" label="Year" />
+              <SortableHeader field="gene" label="Gene" />
+              <SortableHeader field="length" label="Length (bp)" />
               <TableHead className="text-right">Actions</TableHead>
             </TableRow>
           </TableHeader>
@@ -152,44 +237,53 @@ export default function BrowsePage() {
               Array(5).fill(0).map((_, i) => (
                 <TableRow key={i}>
                   <TableCell><div className="w-4 h-4 rounded bg-muted animate-pulse" /></TableCell>
+                  <TableCell><div className="h-4 w-20 bg-muted animate-pulse rounded" /></TableCell>
                   <TableCell><div className="h-4 w-24 bg-muted animate-pulse rounded" /></TableCell>
+                  <TableCell><div className="h-4 w-12 bg-muted animate-pulse rounded" /></TableCell>
+                  <TableCell><div className="h-4 w-20 bg-muted animate-pulse rounded" /></TableCell>
                   <TableCell><div className="h-4 w-16 bg-muted animate-pulse rounded" /></TableCell>
-                  <TableCell><div className="h-4 w-full bg-muted animate-pulse rounded" /></TableCell>
                   <TableCell className="text-right"><div className="h-8 w-8 ml-auto bg-muted animate-pulse rounded" /></TableCell>
                 </TableRow>
               ))
-            ) : filteredSequences.length === 0 ? (
+            ) : displaySequences.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={5} className="text-center h-32 text-muted-foreground">
+                <TableCell colSpan={7} className="text-center h-32 text-muted-foreground">
                   No sequences found matching your criteria.
                 </TableCell>
               </TableRow>
             ) : (
-              filteredSequences.map(seq => (
+              displaySequences.map(seq => (
                 <TableRow key={seq.id} className="hover:bg-muted/30 transition-colors">
                   <TableCell>
                     <Checkbox 
                       checked={selectedIds.has(seq.id)}
                       onCheckedChange={() => toggleSelect(seq.id)}
+                      data-testid={`checkbox-sequence-${seq.id}`}
                     />
                   </TableCell>
-                  <TableCell className="font-mono font-medium text-primary">
+                  <TableCell className="font-mono text-sm font-medium" data-testid={`text-sample-id-${seq.id}`}>
+                    {seq.sequenceId || '—'}
+                  </TableCell>
+                  <TableCell className="font-mono text-sm text-primary" data-testid={`text-header-${seq.id}`}>
                     {seq.accession}
                   </TableCell>
-                  <TableCell className="font-mono text-muted-foreground">
+                  <TableCell className="text-sm" data-testid={`text-year-${seq.id}`}>
+                    {getYear(seq) || '—'}
+                  </TableCell>
+                  <TableCell className="text-sm" data-testid={`text-gene-${seq.id}`}>
+                    {getGene(seq) || '—'}
+                  </TableCell>
+                  <TableCell className="font-mono text-sm text-muted-foreground" data-testid={`text-length-${seq.id}`}>
                     {seq.sequence.length.toLocaleString()}
                   </TableCell>
-                  <TableCell>
-                    <div className="flex gap-2 flex-wrap">
-                      {Object.entries(seq.metadata || {}).slice(0, 3).map(([k, v]) => (
-                        <Badge key={k} variant="secondary" className="text-xs font-normal">
-                          <span className="opacity-50 mr-1">{k}:</span> {String(v)}
-                        </Badge>
-                      ))}
-                    </div>
-                  </TableCell>
                   <TableCell className="text-right">
-                    <Button variant="ghost" size="icon" onClick={() => handleDelete(seq.id)} className="text-muted-foreground hover:text-destructive">
+                    <Button 
+                      variant="ghost" 
+                      size="icon" 
+                      onClick={() => handleDelete(seq.id)} 
+                      className="text-muted-foreground hover:text-destructive"
+                      data-testid={`button-delete-${seq.id}`}
+                    >
                       <Trash2 className="w-4 h-4" />
                     </Button>
                   </TableCell>
