@@ -140,10 +140,54 @@ export default function AnalysisDetailPage() {
         </div>
 
         {analysis.status === 'completed' && (
-          <Button variant="outline" className="gap-2">
-            <Download className="w-4 h-4" />
-            Download Report
-          </Button>
+          <div className="flex gap-2">
+            <Button
+              variant="outline"
+              className="gap-2"
+              onClick={() => {
+                const blob = new Blob([
+                  JSON.stringify(analysis, null, 2)
+                ], { type: 'application/json' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `analysis_${analysis.id}_report.json`;
+                document.body.appendChild(a);
+                a.click();
+                setTimeout(() => {
+                  document.body.removeChild(a);
+                  URL.revokeObjectURL(url);
+                }, 100);
+              }}
+            >
+              <Download className="w-4 h-4" />
+              Download Report
+            </Button>
+            {analysis.type === 'Phylogeny' && analysis.results?.tree && (
+              <Button
+                variant="outline"
+                className="gap-2"
+                onClick={() => {
+                  const blob = new Blob([
+                    analysis.results.tree
+                  ], { type: 'text/plain' });
+                  const url = URL.createObjectURL(blob);
+                  const a = document.createElement('a');
+                  a.href = url;
+                  a.download = `phylogeny_${analysis.id}.nwk`;
+                  document.body.appendChild(a);
+                  a.click();
+                  setTimeout(() => {
+                    document.body.removeChild(a);
+                    URL.revokeObjectURL(url);
+                  }, 100);
+                }}
+              >
+                <Download className="w-4 h-4" />
+                Download phylogeny (.nwk)
+              </Button>
+            )}
+          </div>
         )}
       </div>
 

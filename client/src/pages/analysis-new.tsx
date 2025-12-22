@@ -1,9 +1,9 @@
 import { useState, useEffect } from "react";
 import { useLocation } from "wouter";
-import { useCreateAnalysis } from "@/hooks/use-analyses";
+import { useCreateAnalysis, useAnalyses } from "@/hooks/use-analyses";
 import { useSequences } from "@/hooks/use-sequences";
 import { useToast } from "@/hooks/use-toast";
-import { BarChart, PieChart, Activity, Info } from "lucide-react";
+import { BarChart, PieChart, Activity, Info, FileText } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -34,6 +34,14 @@ const ANALYSIS_TYPES = [
     color: "text-purple-500",
     bgColor: "bg-purple-500/10",
   }
+  ,{
+    id: "Phylogeny",
+    title: "Phylogeny",
+    description: "Construct a phylogenetic tree using IQ-TREE (requires aligned sequences).",
+    icon: FileText,
+    color: "text-orange-500",
+    bgColor: "bg-orange-500/10",
+  }
 ];
 
 export default function NewAnalysisPage() {
@@ -44,26 +52,42 @@ export default function NewAnalysisPage() {
 
   const [selectedType, setSelectedType] = useState<string | null>(null);
   const [selectedSequenceIds, setSelectedSequenceIds] = useState<Set<number>>(new Set(preSelectedIds));
+  const [selectedMSAId, setSelectedMSAId] = useState<number | null>(null);
   
   const { data: sequences } = useSequences();
   const { mutate: createAnalysis, isPending } = useCreateAnalysis();
+  const { data: allAnalyses } = useAnalyses();
 
   const handleRun = () => {
     if (!selectedType) {
       toast({ title: "Error", description: "Please select an analysis type", variant: "destructive" });
       return;
     }
-    if (selectedSequenceIds.size === 0) {
+    if (selectedType !== "Phylogeny" && selectedSequenceIds.size === 0) {
       toast({ title: "Error", description: "Please select at least one sequence", variant: "destructive" });
       return;
     }
 
-    // Only allow MSA analysis if msa is selected
     if (selectedType === "msa") {
       createAnalysis({
         type: "msa",
         sequenceIds: Array.from(selectedSequenceIds),
         parameters: {}
+      }, {
+        onSuccess: () => {
+          toast({ title: "Analysis Started", description: "Job has been queued successfully." });
+          setLocation("/analyses");
+        }
+      });
+    } else if (selectedType === "Phylogeny") {
+      if (!selectedMSAId) {
+        toast({ title: "Error", description: "Please select an MSA analysis as input for Phylogeny.", variant: "destructive" });
+        return;
+      }
+      createAnalysis({
+        type: "Phylogeny",
+        sequenceIds: [], // Not needed for phylogeny
+        parameters: { msaAnalysisId: selectedMSAId }
       }, {
         onSuccess: () => {
           toast({ title: "Analysis Started", description: "Job has been queued successfully." });
@@ -123,61 +147,97 @@ export default function NewAnalysisPage() {
           </div>
         </section>
 
-        {/* 2. Confirm Sequences */}
-        <section className="glass-panel p-6 rounded-2xl">
-           <h2 className="text-xl font-semibold mb-4 flex items-center gap-2">
-            <span className="w-7 h-7 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-sm font-bold">2</span>
-            Confirm Selection
-          </h2>
-          
-          <div className="max-h-64 overflow-y-auto border border-border/50 rounded-xl bg-background/50">
-            {sequences ? (
-              <table className="w-full text-sm">
-                <thead className="bg-muted/50 sticky top-0 backdrop-blur-sm">
-                  <tr>
-                    <th className="px-4 py-3 text-left w-12">
-                      {/* Checkbox for all could go here */}
-                    </th>
-                    <th className="px-4 py-3 text-left">Accession</th>
-                    <th className="px-4 py-3 text-right">Length</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-border/50">
-                  {sequences.map(seq => (
-                    <tr key={seq.id} className="hover:bg-muted/20">
-                      <td className="px-4 py-3">
-                        <Checkbox 
-                          checked={selectedSequenceIds.has(seq.id)}
-                          onCheckedChange={(checked) => {
-                            const next = new Set(selectedSequenceIds);
-                            if (checked) next.add(seq.id);
-                            else next.delete(seq.id);
-                            setSelectedSequenceIds(next);
-                          }}
-                        />
-                      </td>
-                      <td className="px-4 py-3 font-mono">{seq.accession}</td>
-                      <td className="px-4 py-3 text-right text-muted-foreground">{seq.sequence.length.toLocaleString()} bp</td>
+        {/* 2. Confirm Sequences (hide for Phylogeny) */}
+        {selectedType !== "Phylogeny" && (
+          <section className="glass-panel p-6 rounded-2xl">
+            <h2 className="text-xl font-semibold mb-4 flex items-center gap-2">
+              <span className="w-7 h-7 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-sm font-bold">2</span>
+              Confirm Selection
+            </h2>
+            <div className="max-h-64 overflow-y-auto border border-border/50 rounded-xl bg-background/50">
+              {sequences ? (
+                <table className="w-full text-sm">
+                  <thead className="bg-muted/50 sticky top-0 backdrop-blur-sm">
+                    <tr>
+                      <th className="px-4 py-3 text-left w-12">
+                        {/* Checkbox for all could go here */}
+                      </th>
+                      <th className="px-4 py-3 text-left">Accession</th>
+                      <th className="px-4 py-3 text-right">Length</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            ) : (
-              <div className="p-8 text-center text-muted-foreground">Loading sequences...</div>
-            )}
-          </div>
-          <div className="mt-4 flex items-center gap-2 text-sm text-muted-foreground">
-            <Info className="w-4 h-4" />
-            <span>{selectedSequenceIds.size} sequences selected for analysis</span>
-          </div>
-        </section>
+                  </thead>
+                  <tbody className="divide-y divide-border/50">
+                    {sequences.map(seq => (
+                      <tr key={seq.id} className="hover:bg-muted/20">
+                        <td className="px-4 py-3">
+                          <Checkbox 
+                            checked={selectedSequenceIds.has(seq.id)}
+                            onCheckedChange={(checked) => {
+                              const next = new Set(selectedSequenceIds);
+                              if (checked) next.add(seq.id);
+                              else next.delete(seq.id);
+                              setSelectedSequenceIds(next);
+                            }}
+                          />
+                        </td>
+                        <td className="px-4 py-3 font-mono">{seq.accession}</td>
+                        <td className="px-4 py-3 text-right text-muted-foreground">{seq.sequence.length.toLocaleString()} bp</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              ) : (
+                <div className="p-8 text-center text-muted-foreground">Loading sequences...</div>
+              )}
+            </div>
+            <div className="mt-4 flex items-center gap-2 text-sm text-muted-foreground">
+              <Info className="w-4 h-4" />
+              <span>{selectedSequenceIds.size} sequences selected for analysis</span>
+            </div>
+          </section>
+        )}
+
+        {/* 3. Select MSA for Phylogeny */}
+        {selectedType === "Phylogeny" && (
+          <section className="glass-panel p-6 rounded-2xl">
+            <h2 className="text-xl font-semibold mb-4 flex items-center gap-2">
+              <span className="w-7 h-7 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-sm font-bold">3</span>
+              Select MSA Analysis
+            </h2>
+            <div>
+              <select
+                className="w-full p-2 border rounded"
+                value={selectedMSAId ?? ''}
+                onChange={e => setSelectedMSAId(Number(e.target.value) || null)}
+              >
+                <option value="">-- Select MSA Analysis --</option>
+                {allAnalyses?.filter(a => (
+                  (a.type === 'msa' || a.type === 'MSA' || a.type === 'Multiple Sequence Alignment') &&
+                  a.status === 'completed'
+                )).map(a => (
+                  <option key={a.id} value={a.id}>
+                    {`#${a.id} - ${a.type} (${a.createdAt ? new Date(a.createdAt).toLocaleString() : ''})`}
+                  </option>
+                ))}
+              </select>
+              <div className="text-sm text-muted-foreground mt-2">
+                Only completed MSA analyses are shown.
+              </div>
+            </div>
+          </section>
+        )}
 
         {/* Action Bar */}
         <div className="flex justify-end pt-4 border-t border-border">
           <Button
             size="lg"
             onClick={handleRun}
-            disabled={!selectedType || selectedSequenceIds.size === 0 || isPending}
+            disabled={
+              !selectedType ||
+              (selectedType !== "Phylogeny" && selectedSequenceIds.size === 0) ||
+              isPending ||
+              (selectedType === "Phylogeny" && !selectedMSAId)
+            }
             className="w-full md:w-auto text-lg px-8 shadow-xl shadow-primary/20"
           >
             {isPending ? "Starting Job..." : "Run Analysis"}

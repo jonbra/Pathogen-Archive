@@ -20,7 +20,7 @@ import { log } from "../index";
  * - method: Model and method used (GTR+G with IQ-TREE)
  * - timestamp: ISO timestamp of analysis
  */
-export const runPhylogenyAnalysis: AnalysisHandler = async (analysisId, sequences, storage) => {
+export const runPhylogenyAnalysis = async (analysisId, sequences, storage, parameters = {}) => {
   const workdir = `/tmp/phylo_${analysisId}`;
   const inputFasta = path.join(workdir, 'input.fasta');
   const msaFasta = path.join(workdir, 'msa.fasta');
@@ -30,29 +30,43 @@ export const runPhylogenyAnalysis: AnalysisHandler = async (analysisId, sequence
     log(`Phylogeny: Starting analysis for ${sequences.length} sequences`, "phylogeny");
     await fs.promises.mkdir(workdir, { recursive: true });
 
-    // Write input FASTA
-    const fastaContent = sequences.map(s => `>${s.accession}\n${s.sequence}`).join('\n');
-    await fs.promises.writeFile(inputFasta, fastaContent);
-    log(`Phylogeny: Wrote ${sequences.length} sequences to ${inputFasta}`, "phylogeny");
+    let msaReady = false;
+    // If msaAnalysisId is provided, fetch aligned sequences from that analysis
+    if (parameters.msaAnalysisId) {
+      const msaAnalysis = await storage.getAnalysis(parameters.msaAnalysisId);
+      if (!msaAnalysis || !msaAnalysis.results || !Array.isArray(msaAnalysis.results.sequences)) {
+        throw new Error(`Referenced MSA analysis not found or invalid: ${parameters.msaAnalysisId}`);
+      }
+      // Write aligned sequences to msaFasta
+      const msaFastaContent = msaAnalysis.results.sequences.map((s: any) => `>${s.accession}\n${s.sequence}`).join('\n');
+      await fs.promises.writeFile(msaFasta, msaFastaContent);
+      msaReady = true;
+      log(`Phylogeny: Used aligned sequences from MSA analysis #${parameters.msaAnalysisId}`, "phylogeny");
+    }
 
-    // Step 1: MSA with MAFFT
-    const msaCommand = `mafft --auto ${inputFasta} > ${msaFasta}`;
-    log(`Phylogeny: Running MSA: ${msaCommand}`, "phylogeny");
-    
-    try {
-      await executeInCondaEnv(msaCommand, "bioinformatics", workdir);
-      log(`Phylogeny: MAFFT completed`, "phylogeny");
-    } catch (msaErr) {
-      const setupInfo = getSetupInstructions();
-      const errorMsg = `MAFFT execution failed. ${setupInfo}`;
-      log(errorMsg, "phylogeny");
-      throw new Error(errorMsg);
+    if (!msaReady) {
+      // Write input FASTA
+      const fastaContent = sequences.map(s => `>${s.accession}\n${s.sequence}`).join('\n');
+      await fs.promises.writeFile(inputFasta, fastaContent);
+      log(`Phylogeny: Wrote ${sequences.length} sequences to ${inputFasta}`, "phylogeny");
+
+      // Step 1: MSA with MAFFT
+      const msaCommand = `mafft --auto ${inputFasta} > ${msaFasta}`;
+      log(`Phylogeny: Running MSA: ${msaCommand}`, "phylogeny");
+      try {
+        await executeInCondaEnv(msaCommand, "bioinformatics", workdir);
+        log(`Phylogeny: MAFFT completed`, "phylogeny");
+      } catch (msaErr) {
+        const setupInfo = getSetupInstructions();
+        const errorMsg = `MAFFT execution failed. ${setupInfo}`;
+        log(errorMsg, "phylogeny");
+        throw new Error(errorMsg);
+      }
     }
 
     // Step 2: Phylogeny with IQ-TREE (GTR+G model, automatic threading)
     const iqtreeCommand = `iqtree -s ${msaFasta} -m GTR+G -nt AUTO -quiet`;
     log(`Phylogeny: Running IQ-TREE: ${iqtreeCommand}`, "phylogeny");
-    
     try {
       await executeInCondaEnv(iqtreeCommand, "bioinformatics", workdir);
       log(`Phylogeny: IQ-TREE completed`, "phylogeny");

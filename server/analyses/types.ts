@@ -7,5 +7,5 @@ export interface AnalysisSequence {
 }
 
 export interface AnalysisHandler {
-  (analysisId: number, sequences: AnalysisSequence[], storage: IStorage): Promise<void>;
+  (analysisId: number, sequences: AnalysisSequence[], storage: IStorage, parameters?: Record<string, any>): Promise<void>;
 }

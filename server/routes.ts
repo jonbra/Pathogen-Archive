@@ -154,7 +154,7 @@ export async function registerRoutes(
       });
 
       // Run analysis in background
-      runAnalysis(analysis.id, input.type, input.sequenceIds);
+      runAnalysis(analysis.id, input.type, input.sequenceIds, input.parameters);
 
       res.status(201).json(analysis);
     } catch (err) {
@@ -168,11 +168,17 @@ export async function registerRoutes(
   return httpServer;
 }
 
-async function runAnalysis(analysisId: number, type: string, sequenceIds: number[]) {
+async function runAnalysis(analysisId: number, type: string, sequenceIds: number[], parameters: Record<string, any> = {}) {
   try {
     await storage.updateAnalysisStatus(analysisId, 'running');
 
-    // Fetch sequences
+    if (type === 'Phylogeny') {
+      // For Phylogeny, do not fetch sequences, just pass empty array (handler will use MSA)
+      await runPhylogenyAnalysis(analysisId, [], storage, parameters);
+      return;
+    }
+
+    // Fetch sequences for other analyses
     const sequences = await storage.getSequencesByIds(sequenceIds);
 
     // Dispatch to appropriate analysis handler
@@ -180,8 +186,6 @@ async function runAnalysis(analysisId: number, type: string, sequenceIds: number
       await runGCContentAnalysis(analysisId, sequences, storage);
     } else if (type === 'MSA' || type === 'Multiple Sequence Alignment' || type === 'msa') {
       await runMSAAnalysis(analysisId, sequences, storage);
-    } else if (type === 'Phylogeny') {
-      await runPhylogenyAnalysis(analysisId, sequences, storage);
     } else {
       throw new Error(`Unknown analysis type: ${type}`);
     }
