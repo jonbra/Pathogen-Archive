@@ -266,6 +266,32 @@ Query parameters:
 
 ## Troubleshooting
 
+### Sequences Don't Show in Frontend (Empty List)
+
+**Problem:** Web browser shows empty sequence list but you've imported sequences.
+
+**Solution:** See [TROUBLESHOOTING_LOCAL_SETUP.md](TROUBLESHOOTING_LOCAL_SETUP.md)
+
+**Quick fixes:**
+1. Create `config.json` with your PostgreSQL connection string:
+   ```json
+   {
+     "DATABASE_URL": "postgresql://username:password@localhost:5432/database_name"
+   }
+   ```
+
+2. Restart the server:
+   ```bash
+   npm run dev
+   ```
+
+3. Verify sequences are in database:
+   ```bash
+   psql -d your_database_name -c "SELECT COUNT(*) FROM sequences;"
+   ```
+
+4. Check browser: `http://your_server:5000/api/sequences`
+
 ### Upload Fails
 - Check FASTA format (accessions must start with `>`)
 - Ensure CSV has proper headers
@@ -282,9 +308,9 @@ Query parameters:
 - Use `requireComplete=true` only if all sequences have metadata
 
 ### Database Issues
-- Reset database: Delete current and create new via Replit UI
+- **Local PostgreSQL**: Create `config.json` (see [TROUBLESHOOTING_LOCAL_SETUP.md](TROUBLESHOOTING_LOCAL_SETUP.md))
+- **Replit Neon**: Check DATABASE_URL environment variable is set
 - Run `npm run db:push --force` to re-sync schema
-- Check DATABASE_URL environment variable is set
 
 ## Performance Notes
 
