@@ -165,7 +165,7 @@ export default function BrowsePage() {
         <div>
           <h1 className="text-3xl font-bold">Browse Sequences</h1>
           <p className="text-muted-foreground mt-1">
-            {isLoading ? "Loading..." : `${filteredSequences.length} sequences available`}
+            {isLoading ? "Loading..." : `${displaySequences.length} sequences available`}
           </p>
         </div>
         
