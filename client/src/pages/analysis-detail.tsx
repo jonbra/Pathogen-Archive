@@ -41,13 +41,13 @@ export default function AnalysisDetailPage() {
     // --- VISUALIZATIONS FOR RESULTS ---
 
     // Type: MSA or Phylogeny (show viewers)
-    if ((analysis.type === "msa" || analysis.type === "MSA" || analysis.type === "Multiple Sequence Alignment") && Array.isArray(analysis.results?.alignment)) {
-      // MSA: results.alignment: [{ name, seq }]
-      return <MSAAndTreeResults msa={analysis.results.alignment} />;
+    if ((analysis.type === "msa" || analysis.type === "MSA" || analysis.type === "Multiple Sequence Alignment") && Array.isArray(analysis.results?.sequences)) {
+      // MSA: results.sequences: [{ accession, sequence }]
+      return <MSAAndTreeResults msa={analysis.results.sequences} />;
     }
     if ((analysis.type === "phylogeny" || analysis.type === "Phylogeny") && typeof analysis.results?.tree === "string") {
-      // Phylogeny: results.tree: Newick string, results.alignment: optional
-      return <MSAAndTreeResults msa={analysis.results.alignment} newick={analysis.results.tree} />;
+      // Phylogeny: results.tree: Newick string, results.sequences: optional MSA
+      return <MSAAndTreeResults msa={analysis.results.sequences} newick={analysis.results.tree} />;
     }
     
     // Type: GC Content (Example Result Format: { "seq1": 0.45, "seq2": 0.52 })
