@@ -7,6 +7,7 @@ import multer from "multer";
 import fs from "fs";
 import path from "path";
 import { runGCContentAnalysis, runMSAAnalysis, runPhylogenyAnalysis } from "./analyses";
+import microreactRoutes from "./routes-microreact";
 
 const upload = multer({ dest: '/tmp/uploads' });
 
@@ -164,6 +165,9 @@ export async function registerRoutes(
       throw err;
     }
   });
+
+  // Register Microreact routes
+  app.use("/api", microreactRoutes);
 
   return httpServer;
 }

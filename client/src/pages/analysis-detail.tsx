@@ -1,6 +1,7 @@
 import { useAnalysis } from "@/hooks/use-analyses";
-import { MSAAndTreeResults, PhyloAndMetadataViewer } from "@/components/analysis";
+import { MSAAndTreeResults, MicroreactViewer } from "@/components/analysis";
 import { useRoute } from "wouter";
+import { useMicroreactData } from "@/hooks/use-microreact";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from "recharts";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
@@ -13,6 +14,7 @@ export default function AnalysisDetailPage() {
   const [, params] = useRoute("/analyses/:id");
   const id = Number(params?.id);
   const { data: analysis, isLoading, error } = useAnalysis(id);
+  const { data: microreactData } = useMicroreactData(id, analysis?.type === "Phylogeny");
 
   if (isLoading) return <DetailSkeleton />;
   if (error || !analysis) return <div className="p-8 text-center text-red-500">Analysis not found</div>;
@@ -46,8 +48,11 @@ export default function AnalysisDetailPage() {
       return <MSAAndTreeResults msa={analysis.results.sequences} />;
     }
     if ((analysis.type === "phylogeny" || analysis.type === "Phylogeny") && typeof analysis.results?.tree === "string") {
-      // Phylogeny: results.tree: Newick string, results.sequences: optional MSA
-      return <PhyloAndMetadataViewer newick={analysis.results.tree} sequences={analysis.results.sequences} />;
+      // Phylogeny: use Microreact viewer
+      if (microreactData) {
+        return <MicroreactViewer microreactData={microreactData} />;
+      }
+      return <div className="p-8 text-center">Loading phylogenetic data...</div>;
     }
     
     // Type: GC Content (Example Result Format: { "seq1": 0.45, "seq2": 0.52 })
