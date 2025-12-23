@@ -1,5 +1,5 @@
 import { useAnalysis } from "@/hooks/use-analyses";
-import { MSAAndTreeResults } from "@/components/analysis";
+import { MSAAndTreeResults, PhyloAndMetadataViewer } from "@/components/analysis";
 import { useRoute } from "wouter";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from "recharts";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -47,7 +47,7 @@ export default function AnalysisDetailPage() {
     }
     if ((analysis.type === "phylogeny" || analysis.type === "Phylogeny") && typeof analysis.results?.tree === "string") {
       // Phylogeny: results.tree: Newick string, results.sequences: optional MSA
-      return <MSAAndTreeResults msa={analysis.results.sequences} newick={analysis.results.tree} />;
+      return <PhyloAndMetadataViewer newick={analysis.results.tree} sequences={analysis.results.sequences} />;
     }
     
     // Type: GC Content (Example Result Format: { "seq1": 0.45, "seq2": 0.52 })
