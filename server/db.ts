@@ -34,7 +34,12 @@ if (dbUrl.startsWith("postgres://") || dbUrl.startsWith("postgresql://")) {
     let pgPool;
     if (!hasHost) {
       const database = parsed.pathname ? parsed.pathname.replace(/^\//, '') : undefined;
-      const cfg: any = {};
+      const cfg: any = {
+        // Connection pooling settings for remote servers
+        max: 20,
+        idleTimeoutMillis: 30000,
+        connectionTimeoutMillis: 5000,
+      };
       if (database) cfg.database = database;
       if (defaultUser) cfg.user = defaultUser;
       // connect over the Unix socket directory so we get peer auth (like psql)
@@ -50,8 +55,18 @@ if (dbUrl.startsWith("postgres://") || dbUrl.startsWith("postgresql://")) {
       pgPool = new Pool(cfg);
     } else {
       console.log('Initializing pg Pool with connectionString');
-      pgPool = new Pool({ connectionString: dbUrl });
+      pgPool = new Pool({
+        connectionString: dbUrl,
+        max: 20,
+        idleTimeoutMillis: 30000,
+        connectionTimeoutMillis: 5000,
+      });
     }
+
+    // Add error event listener for connection issues
+    pgPool.on("error", (err: any) => {
+      console.error("[DB] Unexpected error on idle client:", err);
+    });
 
     pool = pgPool;
     db = drizzle(pgPool, { schema });

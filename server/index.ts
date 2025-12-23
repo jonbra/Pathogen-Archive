@@ -2,6 +2,7 @@ import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
 import { serveStatic } from "./static";
 import { createServer } from "http";
+import { requestValidator, healthCheck, errorHandler } from "./middleware";
 
 // Global handlers to avoid process exit during debugging; these will log
 // unhandled promise rejections and uncaught exceptions so the server can
@@ -23,15 +24,23 @@ declare module "http" {
   }
 }
 
+// Limit request body size for remote servers
 app.use(
   express.json({
+    limit: "10mb",
     verify: (req, _res, buf) => {
       req.rawBody = buf;
     },
   }),
 );
 
-app.use(express.urlencoded({ extended: false }));
+app.use(express.urlencoded({ extended: false, limit: "10mb" }));
+
+// Request validation middleware
+app.use(requestValidator);
+
+// Health check endpoint for remote monitoring
+app.get("/health", healthCheck);
 
 export function log(message: string, source = "express") {
   const formattedTime = new Date().toLocaleTimeString("en-US", {
@@ -73,15 +82,8 @@ app.use((req, res, next) => {
 (async () => {
   await registerRoutes(httpServer, app);
 
-  app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
-    const status = err.status || err.statusCode || 500;
-    const message = err.message || "Internal Server Error";
-
-    res.status(status).json({ message });
-    console.error('Unhandled error in request handler:', err);
-    // Do not rethrow here - rethrowing crashes the whole process during runtime
-    // and prevents the server from returning a proper 5xx response.
-  });
+  // Central error handler
+  app.use(errorHandler);
 
   // importantly only setup vite in development and after
   // setting up all the other routes so the catch-all route

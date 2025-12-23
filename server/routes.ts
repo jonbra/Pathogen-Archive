@@ -8,8 +8,15 @@ import fs from "fs";
 import path from "path";
 import { runGCContentAnalysis, runMSAAnalysis, runPhylogenyAnalysis } from "./analyses";
 import microreactRoutes from "./routes-microreact";
+import { parseFASTA, parseCSV, csvToMetadata } from "./utils/fasta-parser";
 
-const upload = multer({ dest: '/tmp/uploads' });
+const upload = multer({
+  dest: '/tmp/uploads',
+  limits: {
+    fileSize: 10 * 1024 * 1024, // 10MB max per file
+    files: 2, // Max 2 files (FASTA + metadata)
+  }
+});
 
 export async function registerRoutes(
   httpServer: Server,
@@ -36,13 +43,24 @@ export async function registerRoutes(
   });
 
   app.post(api.sequences.upload.path, upload.fields([{ name: 'fasta' }, { name: 'metadata' }]), async (req, res) => {
-    try {
-      const files = req.files as { [fieldname: string]: Express.Multer.File[] };
-      const fastaFile = files['fasta']?.[0];
-      const metadataFile = files['metadata']?.[0];
+    const files = req.files as { [fieldname: string]: Express.Multer.File[] };
+    const fastaFile = files['fasta']?.[0];
+    const metadataFile = files['metadata']?.[0];
 
+    // Cleanup helper
+    const cleanup = async () => {
+      try {
+        if (fastaFile?.path) await fs.promises.unlink(fastaFile.path).catch(() => {});
+        if (metadataFile?.path) await fs.promises.unlink(metadataFile.path).catch(() => {});
+      } catch (e) {
+        console.error("[CLEANUP] Error removing temp files:", e);
+      }
+    };
+
+    try {
       if (!fastaFile) {
-        return res.status(400).json({ message: 'Missing FASTA file' });
+        await cleanup();
+        return res.status(400).json({ error: 'Missing FASTA file' });
       }
 
       const fastaContent = await fs.promises.readFile(fastaFile.path, 'utf-8');
@@ -50,48 +68,29 @@ export async function registerRoutes(
 
       if (metadataFile) {
         const metadataContent = await fs.promises.readFile(metadataFile.path, 'utf-8');
-        // Lightweight CSV parser that normalizes headers and strips quotes
-        const lines = metadataContent.split(/\r?\n/).filter(l => l.trim());
-        if (lines.length > 0) {
-          const rawHeaders = lines[0].split(',');
-          const headers = rawHeaders.map(h => h.trim().replace(/^\"|\"$/g, '').toLowerCase());
-          metadata = lines.slice(1).map(line => {
-            const values = line.split(',');
-            const obj: Record<string, any> = {};
-            headers.forEach((h, i) => {
-              const raw = values[i] ?? '';
-              obj[h] = String(raw).trim().replace(/^\"|\"$/g, '');
-            });
-            return obj;
-          }).filter(m => Object.keys(m).length > 0);
-        }
+        const csvRows = parseCSV(metadataContent);
+        metadata = csvToMetadata(csvRows);
       }
 
-      // Parse FASTA
-      // >Accession
-      // ACGT...
-      const sequencesList = fastaContent.split('>').slice(1).map(block => {
-        const lines = block.split('\n');
-        const header = lines[0].trim();
-        const accession = header.split(' ')[0]; // simple logic
-        const seq = lines.slice(1).join('').replace(/\s/g, '');
-        
-        // Find metadata
-        // metadata keys are normalized to lowercase in parser
+      // Parse FASTA with validation
+      const fastaEntries = parseFASTA(fastaContent);
+      if (fastaEntries.length === 0) {
+        await cleanup();
+        return res.status(400).json({ error: 'No valid sequences found in FASTA file' });
+      }
+
+      // Map FASTA to sequences with metadata
+      const sequencesList = fastaEntries.map(entry => {
         const meta = metadata.find(m => {
-          return (
-            m.accession === accession ||
-            m['sequence_id'] === accession ||
-            m.sequenceid === accession ||
-            m['sequence id'] === accession
-          );
+          const metaAccession = m.accession || m['sequence_id'] || m.sequenceid || '';
+          return metaAccession.toLowerCase() === entry.accession.toLowerCase();
         }) || {};
 
         return {
-          accession,
-          sequence: seq,
+          accession: entry.accession,
+          sequence: entry.sequence,
           sequenceId: meta['sequence_id'] || meta.sequenceid || undefined,
-          samplingDate: meta['sampling_date'] || meta['samplingdate'] || meta['sampling date'] || undefined,
+          samplingDate: meta['sampling_date'] || meta['samplingdate'] || undefined,
           country: meta.country || undefined,
           genotype: meta.genotype || undefined,
           outbreak: meta.outbreak || undefined,
@@ -102,27 +101,31 @@ export async function registerRoutes(
 
       let count = 0;
       let skipped = 0;
+      const errors: string[] = [];
+
       for (const seq of sequencesList) {
         try {
           await storage.createSequence(seq);
           count++;
         } catch (err: any) {
-          // Skip duplicates, report others
-          if (err && err.code === 'DUPLICATE_ACCESSION') {
+          if (err?.code === 'DUPLICATE_ACCESSION') {
             skipped++;
-            continue;
+          } else {
+            errors.push(`${seq.accession}: ${err.message}`);
           }
-          throw err;
         }
       }
 
-      // Cleanup
-      await fs.promises.unlink(fastaFile.path);
-      if (metadataFile) await fs.promises.unlink(metadataFile.path);
+      await cleanup();
 
-      const message = skipped > 0 ? `Uploaded ${count} sequences, skipped ${skipped} duplicates` : `Uploaded ${count} sequences`;
-      res.status(201).json({ count, skipped, message });
+      const message = skipped > 0 
+        ? `Uploaded ${count} sequences, skipped ${skipped} duplicates` 
+        : `Uploaded ${count} sequences`;
+
+      res.status(201).json({ count, skipped, message, ...(errors.length && { errors }) });
     } catch (err) {
+      await cleanup();
+      console.error("[UPLOAD]", err);
       console.error(err);
       res.status(500).json({ message: 'Internal Server Error' });
     }
@@ -173,29 +176,39 @@ export async function registerRoutes(
 }
 
 async function runAnalysis(analysisId: number, type: string, sequenceIds: number[], parameters: Record<string, any> = {}) {
+  const startTime = Date.now();
+  const TIMEOUT = 5 * 60 * 1000; // 5 minute timeout for analyses
+
+  const timeout = setTimeout(async () => {
+    console.error(`[ANALYSIS] Timeout for analysis ${analysisId}`);
+    await storage.updateAnalysisStatus(analysisId, 'failed', { error: 'Analysis timeout (5 minutes)' }).catch(e => console.error(e));
+  }, TIMEOUT);
+
   try {
     await storage.updateAnalysisStatus(analysisId, 'running');
+    console.log(`[ANALYSIS] Started ${type} analysis ${analysisId}`);
 
     if (type === 'Phylogeny') {
-      // For Phylogeny, do not fetch sequences, just pass empty array (handler will use MSA)
       await runPhylogenyAnalysis(analysisId, [], storage, parameters);
-      return;
-    }
-
-    // Fetch sequences for other analyses
-    const sequences = await storage.getSequencesByIds(sequenceIds);
-
-    // Dispatch to appropriate analysis handler
-    if (type === 'GC Content') {
-      await runGCContentAnalysis(analysisId, sequences, storage);
-    } else if (type === 'MSA' || type === 'Multiple Sequence Alignment' || type === 'msa') {
-      await runMSAAnalysis(analysisId, sequences, storage);
     } else {
-      throw new Error(`Unknown analysis type: ${type}`);
+      const sequences = await storage.getSequencesByIds(sequenceIds);
+      
+      if (type === 'GC Content') {
+        await runGCContentAnalysis(analysisId, sequences, storage);
+      } else if (type === 'MSA' || type === 'Multiple Sequence Alignment' || type === 'msa') {
+        await runMSAAnalysis(analysisId, sequences, storage);
+      } else {
+        throw new Error(`Unknown analysis type: ${type}`);
+      }
     }
 
-  } catch (err) {
-    console.error("Analysis failed", err);
-    await storage.updateAnalysisStatus(analysisId, 'failed', { error: String(err) });
+    clearTimeout(timeout);
+    const duration = Date.now() - startTime;
+    console.log(`[ANALYSIS] Completed ${type} analysis ${analysisId} in ${duration}ms`);
+
+  } catch (err: any) {
+    clearTimeout(timeout);
+    console.error(`[ANALYSIS] Failed ${type} analysis ${analysisId}:`, err.message);
+    await storage.updateAnalysisStatus(analysisId, 'failed', { error: err.message }).catch(e => console.error(e));
   }
 }

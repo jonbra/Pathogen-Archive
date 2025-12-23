@@ -6,7 +6,7 @@ import {
   type CreateAnalysisRequest,
   type SequenceSearchParams
 } from "@shared/schema";
-import { eq, desc, and, or, isNull, isNotNull } from "drizzle-orm";
+import { eq, desc, and, or, isNull, isNotNull, inArray } from "drizzle-orm";
 
 export interface IStorage {
   // Sequences
@@ -35,17 +35,8 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getSequencesByIds(ids: number[]): Promise<Sequence[]> {
-    // drizzle doesn't have a simple 'in' array method on id column without importing 'inArray'
-    // I will import it in the file if I could edit imports, but I can't easily here.
-    // Instead, I'll fetch all and filter or use raw sql if needed, but 'inArray' is standard.
-    // Let's assume standard select for MVP or filter in memory if list is short,
-    // but better to add 'inArray' import.
-    // Since I cannot change imports easily in this snippet without rewriting whole file:
-    // I will rewrite imports in the next tool call if needed or just use getAll and filter for now (not efficient but safe for MVP).
-    // Actually I can just write the implementation assuming I have inArray or use loop.
-    // Let's fetch all for now, assuming dataset < 1000 for MVP.
-    const all = await this.getSequences();
-    return all.filter(s => ids.includes(s.id));
+    if (ids.length === 0) return [];
+    return await db.select().from(sequences).where(inArray(sequences.id, ids));
   }
 
   async createSequence(sequence: InsertSequence): Promise<Sequence> {
