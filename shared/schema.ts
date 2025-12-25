@@ -25,7 +25,18 @@ export const analyses = pgTable("analyses", {
   createdAt: timestamp("created_at").defaultNow(),
 });
 
-export const insertSequenceSchema = createInsertSchema(sequences).omit({ id: true, createdAt: true });
+export const savedSearches = pgTable("saved_searches", {
+  id: serial("id").primaryKey(),
+  name: text("name").notNull(),
+  description: text("description"),
+  params: jsonb("params").$type<SequenceSearchParams>().notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertSavedSearchSchema = createInsertSchema(savedSearches).omit({ id: true, createdAt: true });
+
+export type SavedSearch = typeof savedSearches.$inferSelect;
+export type InsertSavedSearch = z.infer<typeof insertSavedSearchSchema>;
 export const insertAnalysisSchema = createInsertSchema(analyses).omit({ id: true, createdAt: true });
 
 export type Sequence = typeof sequences.$inferSelect;

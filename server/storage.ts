@@ -1,10 +1,11 @@
 import { db } from "./db";
 import {
-  sequences, analyses,
+  sequences, analyses, savedSearches,
   type Sequence, type InsertSequence,
   type Analysis, type InsertAnalysis,
   type CreateAnalysisRequest,
-  type SequenceSearchParams
+  type SequenceSearchParams,
+  type SavedSearch, type InsertSavedSearch
 } from "@shared/schema";
 import { eq, desc, and, or, isNull, isNotNull, inArray } from "drizzle-orm";
 
@@ -22,9 +23,28 @@ export interface IStorage {
   getAnalysis(id: number): Promise<Analysis | undefined>;
   createAnalysis(analysis: InsertAnalysis): Promise<Analysis>;
   updateAnalysisStatus(id: number, status: string, results?: any): Promise<Analysis>;
+
+  // Saved Searches
+  getSavedSearches(): Promise<SavedSearch[]>;
+  createSavedSearch(search: InsertSavedSearch): Promise<SavedSearch>;
+  deleteSavedSearch(id: number): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
+  // ... existing methods ...
+  async getSavedSearches(): Promise<SavedSearch[]> {
+    return await db.select().from(savedSearches).orderBy(desc(savedSearches.createdAt));
+  }
+
+  async createSavedSearch(search: InsertSavedSearch): Promise<SavedSearch> {
+    const [res] = await db.insert(savedSearches).values(search).returning();
+    return res;
+  }
+
+  async deleteSavedSearch(id: number): Promise<void> {
+    await db.delete(savedSearches).where(eq(savedSearches.id, id));
+  }
+}
   async getSequences(): Promise<Sequence[]> {
     return await db.select().from(sequences).orderBy(desc(sequences.createdAt));
   }
