@@ -8,6 +8,7 @@ import fs from "fs";
 import path from "path";
 import { runGCContentAnalysis, runMSAAnalysis, runPhylogenyAnalysis } from "./analyses";
 import microreactRoutes from "./routes-microreact";
+import searchRoutes from "./routes-search";
 import { parseFASTA, parseCSV, csvToMetadata } from "./utils/fasta-parser";
 
 const upload = multer({
@@ -152,7 +153,8 @@ export async function registerRoutes(
     try {
       const input = api.analyses.create.input.parse(req.body);
       const analysis = await storage.createAnalysis({
-        ...input,
+        type: input.type,
+        parameters: input.parameters,
         status: 'pending',
         results: {}
       });
@@ -171,6 +173,7 @@ export async function registerRoutes(
 
   // Register Microreact routes
   app.use("/api", microreactRoutes);
+  app.use("/api", searchRoutes);
 
   return httpServer;
 }

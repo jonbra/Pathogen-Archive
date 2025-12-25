@@ -1,10 +1,11 @@
 import { Link, useLocation } from "wouter";
-import { Dna, Database, UploadCloud, BarChart2, Menu, X, Activity } from "lucide-react";
+import { Dna, Database, UploadCloud, BarChart2, Menu, X, Activity, Search } from "lucide-react";
 import { useState } from "react";
 import { cn } from "@/lib/utils";
 
 const NAV_ITEMS = [
   { href: "/", label: "Dashboard", icon: Activity },
+  { href: "/search", label: "Advanced Search", icon: Search },
   { href: "/upload", label: "Upload Data", icon: UploadCloud },
   { href: "/browse", label: "Browse Database", icon: Database },
   { href: "/analyses", label: "Analyses", icon: BarChart2 },

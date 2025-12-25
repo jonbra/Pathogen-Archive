@@ -33,6 +33,7 @@ export const savedSearches = pgTable("saved_searches", {
   createdAt: timestamp("created_at").defaultNow(),
 });
 
+export const insertSequenceSchema = createInsertSchema(sequences).omit({ id: true, createdAt: true });
 export const insertSavedSearchSchema = createInsertSchema(savedSearches).omit({ id: true, createdAt: true });
 
 export type SavedSearch = typeof savedSearches.$inferSelect;

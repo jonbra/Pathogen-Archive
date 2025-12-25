@@ -31,7 +31,6 @@ export interface IStorage {
 }
 
 export class DatabaseStorage implements IStorage {
-  // ... existing methods ...
   async getSavedSearches(): Promise<SavedSearch[]> {
     return await db.select().from(savedSearches).orderBy(desc(savedSearches.createdAt));
   }
@@ -44,7 +43,7 @@ export class DatabaseStorage implements IStorage {
   async deleteSavedSearch(id: number): Promise<void> {
     await db.delete(savedSearches).where(eq(savedSearches.id, id));
   }
-}
+
   async getSequences(): Promise<Sequence[]> {
     return await db.select().from(sequences).orderBy(desc(sequences.createdAt));
   }

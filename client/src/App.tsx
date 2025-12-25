@@ -6,6 +6,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { Layout } from "@/components/layout";
 
 import Dashboard from "@/pages/dashboard";
+import SearchPage from "@/pages/search";
 import UploadPage from "@/pages/upload";
 import BrowsePage from "@/pages/browse";
 import AnalysisListPage from "@/pages/analysis-list";
@@ -18,6 +19,7 @@ function Router() {
     <Layout>
       <Switch>
         <Route path="/" component={Dashboard} />
+        <Route path="/search" component={SearchPage} />
         <Route path="/upload" component={UploadPage} />
         <Route path="/browse" component={BrowsePage} />
         <Route path="/analyses" component={AnalysisListPage} />
