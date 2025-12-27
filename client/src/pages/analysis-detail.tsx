@@ -47,7 +47,7 @@ export default function AnalysisDetailPage() {
       // MSA: results.sequences: [{ accession, sequence }]
       return <MSAAndTreeResults msa={analysis.results.sequences} />;
     }
-    if ((analysis.type === "phylogeny" || analysis.type === "Phylogeny") && typeof analysis.results?.tree === "string") {
+    if ((analysis.type === "phylogeny" || analysis.type === "Phylogeny") && (typeof analysis.results?.tree === "string" || microreactData)) {
       // Phylogeny: use Microreact viewer
       if (microreactData) {
         return <MicroreactViewer microreactData={microreactData} />;

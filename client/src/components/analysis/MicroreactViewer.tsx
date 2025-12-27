@@ -1,8 +1,15 @@
-import React, { useState } from "react";
-import { Download } from "lucide-react";
+import React, { useState, useEffect, useRef } from "react";
+import { Download, Maximize2, Minimize2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+
+declare global {
+  interface Window {
+    d3: any;
+    phylotree: any;
+  }
+}
 
 interface MicroreactFile {
   $schema?: string;
@@ -31,6 +38,8 @@ interface Props {
 
 const MicroreactViewer: React.FC<Props> = ({ microreactData, title = "Phylogenetic Project" }) => {
   const [activeTab, setActiveTab] = useState("tree");
+  const treeContainerRef = useRef<HTMLDivElement>(null);
+  const [isFullscreen, setIsFullscreen] = useState(false);
 
   const data: MicroreactFile =
     typeof microreactData === "string"
@@ -42,6 +51,47 @@ const MicroreactViewer: React.FC<Props> = ({ microreactData, title = "Phylogenet
   const metadataRows = metadataData ? metadataData.split("\n") : [];
   const headers = metadataRows[0]?.split(",") || [];
   const rows = metadataRows.slice(1).filter((r) => r.trim());
+
+  useEffect(() => {
+    if (activeTab === "tree" && treeData && treeContainerRef.current && window.d3 && window.phylotree) {
+      // Clear previous tree
+      treeContainerRef.current.innerHTML = "";
+      
+      try {
+        const svg = window.d3.select(treeContainerRef.current)
+          .append("svg")
+          .attr("width", "100%")
+          .attr("height", isFullscreen ? "800" : "500")
+          .attr("class", "phylotree-svg");
+
+        const tree = new window.phylotree.phylotree(treeData);
+        
+        // Render tree
+        tree.render({
+          container: treeContainerRef.current,
+          "draw-size-nodes": true,
+          "node-styler": (element: any, data: any) => {
+            if (data.name) {
+              element.style("fill", "hsl(var(--primary))");
+            }
+          },
+          "edge-styler": (element: any) => {
+            element.style("stroke", "hsl(var(--border))");
+            element.style("stroke-width", "1.5px");
+          }
+        });
+
+        // Add responsiveness
+        const containerWidth = treeContainerRef.current.clientWidth;
+        tree.size([isFullscreen ? 800 : 500, containerWidth - 100]);
+        tree.update();
+
+      } catch (err) {
+        console.error("Error rendering phylogenetic tree:", err);
+        treeContainerRef.current.innerHTML = `<div class="p-4 text-destructive">Error rendering tree: ${String(err)}</div>`;
+      }
+    }
+  }, [activeTab, treeData, isFullscreen]);
 
   const downloadMicroreactFile = () => {
     const jsonString = JSON.stringify(data, null, 2);
@@ -110,7 +160,7 @@ const MicroreactViewer: React.FC<Props> = ({ microreactData, title = "Phylogenet
 
       {/* Tabs for different views */}
       <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList>
+        <TabsList className="mb-4">
           <TabsTrigger value="tree" data-testid="tab-tree">
             Tree ({treeData ? "✓" : "✗"})
           </TabsTrigger>
@@ -126,23 +176,51 @@ const MicroreactViewer: React.FC<Props> = ({ microreactData, title = "Phylogenet
         <TabsContent value="tree" className="space-y-4">
           {treeData ? (
             <>
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={downloadTreeFile}
-                data-testid="button-download-tree"
-              >
-                <Download className="w-4 h-4 mr-2" />
-                Newick
-              </Button>
-              <div className="bg-muted/30 rounded-lg p-4 border border-border overflow-x-auto">
-                <pre className="font-mono text-xs whitespace-pre-wrap break-words">
-                  {treeData}
-                </pre>
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex gap-2">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={downloadTreeFile}
+                    data-testid="button-download-tree"
+                  >
+                    <Download className="w-4 h-4 mr-2" />
+                    Newick
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={() => setIsFullscreen(!isFullscreen)}
+                  >
+                    {isFullscreen ? (
+                      <><Minimize2 className="w-4 h-4 mr-2" /> Small View</>
+                    ) : (
+                      <><Maximize2 className="w-4 h-4 mr-2" /> Expand</>
+                    )}
+                  </Button>
+                </div>
               </div>
+              
+              <div 
+                className={`bg-white dark:bg-slate-900 rounded-lg border border-border overflow-hidden transition-all duration-300 ${isFullscreen ? 'min-h-[800px]' : 'min-h-[500px]'}`}
+              >
+                <div 
+                  ref={treeContainerRef} 
+                  className="w-full h-full p-4 [&_.phylotree-node_text]:text-[10px] [&_.phylotree-node_text]:fill-foreground"
+                />
+              </div>
+
+              <Card className="p-4 bg-muted/20 border-dashed">
+                <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">Raw Newick String</h4>
+                <div className="bg-muted/30 rounded p-3 border border-border max-h-24 overflow-y-auto">
+                  <code className="text-[10px] break-all leading-tight opacity-70">
+                    {treeData}
+                  </code>
+                </div>
+              </Card>
             </>
           ) : (
-            <Card className="p-6 text-center text-muted-foreground">
+            <Card className="p-6 text-center text-muted-foreground border-dashed">
               No tree data available
             </Card>
           )}
@@ -161,12 +239,12 @@ const MicroreactViewer: React.FC<Props> = ({ microreactData, title = "Phylogenet
                 <Download className="w-4 h-4 mr-2" />
                 CSV
               </Button>
-              <div className="bg-muted/30 rounded-lg overflow-x-auto border border-border">
+              <div className="bg-muted/30 rounded-lg overflow-x-auto border border-border shadow-inner">
                 <table className="w-full text-sm">
-                  <thead className="bg-muted/50 border-b border-border">
+                  <thead className="bg-muted/50 border-b border-border sticky top-0">
                     <tr>
                       {headers.map((header, idx) => (
-                        <th key={idx} className="text-left p-3 font-semibold">
+                        <th key={idx} className="text-left p-3 font-semibold whitespace-nowrap">
                           {header}
                         </th>
                       ))}
@@ -178,10 +256,10 @@ const MicroreactViewer: React.FC<Props> = ({ microreactData, title = "Phylogenet
                       return (
                         <tr
                           key={rowIdx}
-                          className="border-b border-border hover:bg-muted/20 transition-colors"
+                          className="border-b border-border/50 hover:bg-muted/20 transition-colors"
                         >
                           {cells.map((cell, cellIdx) => (
-                            <td key={cellIdx} className="p-3 font-mono text-xs">
+                            <td key={cellIdx} className="p-3 font-mono text-xs whitespace-nowrap">
                               {cell}
                             </td>
                           ))}
@@ -193,7 +271,7 @@ const MicroreactViewer: React.FC<Props> = ({ microreactData, title = "Phylogenet
               </div>
             </>
           ) : (
-            <Card className="p-6 text-center text-muted-foreground">
+            <Card className="p-6 text-center text-muted-foreground border-dashed">
               No metadata available
             </Card>
           )}
@@ -201,7 +279,7 @@ const MicroreactViewer: React.FC<Props> = ({ microreactData, title = "Phylogenet
 
         {/* JSON Tab */}
         <TabsContent value="json" className="space-y-4">
-          <div className="bg-muted/30 rounded-lg p-4 border border-border overflow-x-auto max-h-96">
+          <div className="bg-muted/30 rounded-lg p-4 border border-border overflow-x-auto max-h-[500px] shadow-inner">
             <pre className="font-mono text-xs whitespace-pre-wrap break-words">
               {JSON.stringify(data, null, 2)}
             </pre>
@@ -211,13 +289,13 @@ const MicroreactViewer: React.FC<Props> = ({ microreactData, title = "Phylogenet
 
       {/* Project Info */}
       {data.settings && (
-        <Card className="p-4 bg-muted/20 border border-border">
-          <h4 className="font-semibold mb-3">Visualization Settings</h4>
-          <div className="grid grid-cols-2 gap-2 text-sm">
+        <Card className="p-4 bg-muted/20 border border-border shadow-sm">
+          <h4 className="text-sm font-semibold mb-3 border-b border-border pb-2">Visualization Settings</h4>
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-x-8 gap-y-2 text-sm">
             {Object.entries(data.settings).map(([key, value]) => (
-              <div key={key} className="flex justify-between">
-                <span className="text-muted-foreground">{key}:</span>
-                <span className="font-mono">{String(value)}</span>
+              <div key={key} className="flex justify-between items-center gap-2">
+                <span className="text-muted-foreground text-xs">{key}:</span>
+                <span className="font-mono bg-muted/50 px-1.5 py-0.5 rounded text-xs">{String(value)}</span>
               </div>
             ))}
           </div>
