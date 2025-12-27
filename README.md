@@ -39,7 +39,17 @@ A full-stack application for managing, analyzing, and exploring Hepatitis A viru
    npm run db:push
    ```
 
-3. **Start the application:**
+3. **Database Maintenance (Optional):**
+   To clear all data and reset the database:
+   ```bash
+   psql "$DATABASE_URL" -c "TRUNCATE TABLE sequences, analyses, saved_searches RESTART IDENTITY CASCADE;"
+   ```
+   If tables are missing, sync the schema:
+   ```bash
+   npm run db:push
+   ```
+
+4. **Start the application:**
    ```bash
    npm run dev
    ```
