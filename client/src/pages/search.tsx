@@ -86,37 +86,57 @@ export default function SearchPage() {
         <CardContent className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           <div className="space-y-2">
             <Label>Genotype</Label>
-            <Select 
-              value={params.genotype || "all"} 
-              onValueChange={val => setParams(p => ({ ...p, genotype: val === "all" ? undefined : val }))}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Select genotype" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Genotypes</SelectItem>
-                {genotypes?.map(g => (
-                  <SelectItem key={g} value={g}>{g}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <div className="flex gap-2">
+              <div className="flex-1">
+                <Select 
+                  value={params.genotype || ""} 
+                  onValueChange={val => setParams(p => ({ ...p, genotype: val === "all" ? undefined : val }))}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select genotype" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Genotypes</SelectItem>
+                    {genotypes?.map(g => (
+                      <SelectItem key={g} value={g}>{g}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <Input 
+                value={params.genotype || ""} 
+                onChange={e => setParams(p => ({ ...p, genotype: e.target.value }))}
+                placeholder="Or type..."
+                className="w-1/2"
+              />
+            </div>
           </div>
           <div className="space-y-2">
             <Label>Country</Label>
-            <Select 
-              value={params.country || "all"} 
-              onValueChange={val => setParams(p => ({ ...p, country: val === "all" ? undefined : val }))}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Select country" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Countries</SelectItem>
-                {countries?.map(c => (
-                  <SelectItem key={c} value={c}>{c}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <div className="flex gap-2">
+              <div className="flex-1">
+                <Select 
+                  value={params.country || ""} 
+                  onValueChange={val => setParams(p => ({ ...p, country: val === "all" ? undefined : val }))}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select country" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Countries</SelectItem>
+                    {countries?.map(c => (
+                      <SelectItem key={c} value={c}>{c}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <Input 
+                value={params.country || ""} 
+                onChange={e => setParams(p => ({ ...p, country: e.target.value }))}
+                placeholder="Or type..."
+                className="w-1/2"
+              />
+            </div>
           </div>
           <div className="space-y-2">
             <Label>Sampling Date</Label>
