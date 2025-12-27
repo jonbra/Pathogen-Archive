@@ -35,7 +35,9 @@ A full-stack application for managing, analyzing, and exploring Hepatitis A viru
    ```
 
 2. **Initialize the database:**
+   Ensure you have your `DATABASE_URL` set in your environment or a `.env` file, then run:
    ```bash
+   export DATABASE_URL="postgresql://username:password@localhost:5432/database_name"
    npm run db:push
    ```
 
