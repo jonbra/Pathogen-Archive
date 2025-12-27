@@ -26,12 +26,15 @@ Preferred communication style: Simple, everyday language.
 - **File Upload**: Multer for multipart form-data handling (FASTA + metadata CSV files)
 - **Analysis Processing**: Background job processing with status tracking (pending → running → completed/failed)
 
-### Data Storage
-- **Database**: PostgreSQL (supports both Neon serverless and local PostgreSQL via node-postgres)
-- **ORM**: Drizzle ORM with type-safe schema definitions in `shared/schema.ts`
-- **Tables**:
-  - `sequences`: Stores genome sequences with metadata (accession, sequence data, sampling date, country, genotype, outbreak info)
-  - `analyses`: Tracks analysis jobs and stores results
+### Database Maintenance
+To clear all data and reset the database:
+```bash
+psql "$DATABASE_URL" -c "TRUNCATE TABLE sequences, analyses, saved_searches RESTART IDENTITY CASCADE;"
+```
+If tables are missing, sync the schema:
+```bash
+npm run db:push
+```
 
 ### External Tool Integration
 - **MAFFT**: Multiple sequence alignment tool (executed via child process, supports conda environments)
