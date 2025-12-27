@@ -30,6 +30,16 @@ export async function registerRoutes(
     res.json(sequences);
   });
 
+  app.get("/api/sequences/genotypes", async (_req, res) => {
+    const genotypes = await storage.getUniqueGenotypes();
+    res.json(genotypes);
+  });
+
+  app.get("/api/sequences/countries", async (_req, res) => {
+    const countries = await storage.getUniqueCountries();
+    res.json(countries);
+  });
+
   app.get(api.sequences.search.path, async (req, res) => {
     const { sequenceId, samplingDate, country, genotype, outbreak, requireComplete } = req.query;
     const result = await storage.searchSequences({

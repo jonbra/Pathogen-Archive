@@ -28,9 +28,23 @@ export interface IStorage {
   getSavedSearches(): Promise<SavedSearch[]>;
   createSavedSearch(search: InsertSavedSearch): Promise<SavedSearch>;
   deleteSavedSearch(id: number): Promise<void>;
+
+  // Lookups
+  getUniqueGenotypes(): Promise<string[]>;
+  getUniqueCountries(): Promise<string[]>;
 }
 
 export class DatabaseStorage implements IStorage {
+  async getUniqueGenotypes(): Promise<string[]> {
+    const results = await db.selectDistinct({ genotype: sequences.genotype }).from(sequences);
+    return results.map(r => r.genotype).filter((g): g is string => g !== null && g !== '');
+  }
+
+  async getUniqueCountries(): Promise<string[]> {
+    const results = await db.selectDistinct({ country: sequences.country }).from(sequences);
+    return results.map(r => r.country).filter((c): c is string => c !== null && c !== '');
+  }
+
   async getSavedSearches(): Promise<SavedSearch[]> {
     return await db.select().from(savedSearches).orderBy(desc(savedSearches.createdAt));
   }

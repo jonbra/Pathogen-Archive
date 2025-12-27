@@ -26,7 +26,7 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import type { Sequence } from "@shared/schema";
 
-type SortField = "sample_id" | "header" | "year" | "gene" | "length";
+type SortField = "sample_id" | "header" | "year" | "gene" | "genotype" | "length";
 type SortDirection = "asc" | "desc";
 
 export default function BrowsePage() {
@@ -52,7 +52,7 @@ export default function BrowsePage() {
 
   // Helper to extract gene from metadata or genotype
   const getGene = (seq: Sequence): string => {
-    const gene = seq.metadata?.gene || seq.metadata?.Gene || seq.genotype || '';
+    const gene = seq.metadata?.gene || seq.metadata?.Gene || '';
     return gene ? String(gene) : '';
   };
 
@@ -64,6 +64,7 @@ export default function BrowsePage() {
     let filtered = sequences.filter(seq => 
       seq.accession.toLowerCase().includes(term) || 
       seq.sequenceId?.toLowerCase().includes(term) ||
+      seq.genotype?.toLowerCase().includes(term) ||
       seq.filename.toLowerCase().includes(term) ||
       JSON.stringify(seq.metadata).toLowerCase().includes(term)
     );
@@ -90,6 +91,10 @@ export default function BrowsePage() {
           case 'gene':
             aVal = getGene(a);
             bVal = getGene(b);
+            break;
+          case 'genotype':
+            aVal = a.genotype || '';
+            bVal = b.genotype || '';
             break;
           case 'length':
             aVal = a.sequence.length;
@@ -228,6 +233,7 @@ export default function BrowsePage() {
               <SortableHeader field="header" label="Header" />
               <SortableHeader field="year" label="Year" />
               <SortableHeader field="gene" label="Gene" />
+              <SortableHeader field="genotype" label="Genotype" />
               <SortableHeader field="length" label="Length (bp)" />
               <TableHead className="text-right">Actions</TableHead>
             </TableRow>
@@ -272,6 +278,9 @@ export default function BrowsePage() {
                   </TableCell>
                   <TableCell className="text-sm" data-testid={`text-gene-${seq.id}`}>
                     {getGene(seq) || '—'}
+                  </TableCell>
+                  <TableCell className="text-sm" data-testid={`text-genotype-${seq.id}`}>
+                    {seq.genotype || '—'}
                   </TableCell>
                   <TableCell className="font-mono text-sm text-muted-foreground" data-testid={`text-length-${seq.id}`}>
                     {seq.sequence.length.toLocaleString()}

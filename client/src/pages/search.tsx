@@ -29,6 +29,14 @@ export default function SearchPage() {
     enabled: false,
   });
 
+  const { data: genotypes } = useQuery<string[]>({
+    queryKey: ["/api/sequences/genotypes"],
+  });
+
+  const { data: countries } = useQuery<string[]>({
+    queryKey: ["/api/sequences/countries"],
+  });
+
   const saveSearchMutation = useMutation({
     mutationFn: async (data: any) => {
       await apiRequest("POST", "/api/saved-searches", data);
@@ -78,19 +86,37 @@ export default function SearchPage() {
         <CardContent className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           <div className="space-y-2">
             <Label>Genotype</Label>
-            <Input 
-              value={params.genotype || ""} 
-              onChange={e => setParams(p => ({ ...p, genotype: e.target.value }))}
-              placeholder="e.g. IA, IB"
-            />
+            <Select 
+              value={params.genotype || "all"} 
+              onValueChange={val => setParams(p => ({ ...p, genotype: val === "all" ? undefined : val }))}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Select genotype" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Genotypes</SelectItem>
+                {genotypes?.map(g => (
+                  <SelectItem key={g} value={g}>{g}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
           <div className="space-y-2">
             <Label>Country</Label>
-            <Input 
-              value={params.country || ""} 
-              onChange={e => setParams(p => ({ ...p, country: e.target.value }))}
-              placeholder="e.g. Norway"
-            />
+            <Select 
+              value={params.country || "all"} 
+              onValueChange={val => setParams(p => ({ ...p, country: val === "all" ? undefined : val }))}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Select country" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Countries</SelectItem>
+                {countries?.map(c => (
+                  <SelectItem key={c} value={c}>{c}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
           <div className="space-y-2">
             <Label>Sampling Date</Label>
