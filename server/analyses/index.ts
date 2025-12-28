@@ -15,7 +15,6 @@
  * See DEVELOPMENT.md "Adding New Analyses" for detailed guide.
  */
 
-export { runGCContentAnalysis } from "./gcContent";
 export { runMSAAnalysis } from "./msa";
 export { runPhylogenyAnalysis } from "./phylogeny";
 export type { AnalysisHandler, AnalysisSequence } from "./types";

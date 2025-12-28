@@ -1,14 +1,10 @@
 import { useAnalysis } from "@/hooks/use-analyses";
 import { MSAAndTreeResults, MicroreactViewer } from "@/components/analysis";
 import { useRoute } from "wouter";
-import { useMicroreactData } from "@/hooks/use-microreact";
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from "recharts";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import { Download, AlertTriangle } from "lucide-react";
 import { Button } from "@/components/ui/button";
-
-const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042'];
 
 export default function AnalysisDetailPage() {
   const [, params] = useRoute("/analyses/:id");
@@ -55,82 +51,6 @@ export default function AnalysisDetailPage() {
       return <div className="p-8 text-center">Loading phylogenetic data...</div>;
     }
     
-    // Type: GC Content (Example Result Format: { "seq1": 0.45, "seq2": 0.52 })
-    if (analysis.type === "gc_content") {
-      const data = Object.entries(analysis.results || {}).map(([name, val]: [string, any]) => ({
-        name,
-        value: (val * 100).toFixed(2)
-      }));
-
-      return (
-        <div className="space-y-8">
-          <div className="h-[400px] w-full">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={data}>
-                <CartesianGrid strokeDasharray="3 3" opacity={0.2} />
-                <XAxis dataKey="name" stroke="#888888" fontSize={12} tickLine={false} axisLine={false} />
-                <YAxis stroke="#888888" fontSize={12} tickLine={false} axisLine={false} tickFormatter={(value) => `${value}%`} />
-                <Tooltip 
-                  contentStyle={{ backgroundColor: 'rgba(255, 255, 255, 0.9)', borderRadius: '8px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}
-                  cursor={{ fill: 'transparent' }}
-                />
-                <Bar dataKey="value" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-          <div className="glass-panel p-6 rounded-xl">
-            <h4 className="font-bold mb-4">Raw Data</h4>
-            <pre className="text-xs bg-black/5 p-4 rounded-lg overflow-x-auto">
-              {JSON.stringify(analysis.results, null, 2)}
-            </pre>
-          </div>
-        </div>
-      );
-    }
-
-    // Type: Nucleotide Distribution (Example Result Format: { A: 120, T: 130, G: 90, C: 110 })
-    if (analysis.type === "nucleotide_dist") {
-      const data = Object.entries(analysis.results || {}).map(([name, value]) => ({ name, value }));
-      
-      return (
-        <div className="space-y-8">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-center">
-             <div className="h-[300px] w-full">
-              <ResponsiveContainer width="100%" height="100%">
-                <PieChart>
-                  <Pie
-                    data={data}
-                    cx="50%"
-                    cy="50%"
-                    innerRadius={60}
-                    outerRadius={80}
-                    paddingAngle={5}
-                    dataKey="value"
-                  >
-                    {data.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                    ))}
-                  </Pie>
-                  <Tooltip />
-                </PieChart>
-              </ResponsiveContainer>
-            </div>
-            <div className="space-y-4">
-              {data.map((item: any, idx) => (
-                <div key={item.name} className="flex items-center justify-between p-3 rounded-lg bg-muted/30">
-                  <div className="flex items-center gap-3">
-                    <div className="w-3 h-3 rounded-full" style={{ backgroundColor: COLORS[idx % COLORS.length] }} />
-                    <span className="font-bold">{item.name}</span>
-                  </div>
-                  <span className="font-mono text-muted-foreground">{item.value.toLocaleString()} bases</span>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-      );
-    }
-
     // Fallback for other types
     return (
       <div className="glass-panel p-6 rounded-xl">

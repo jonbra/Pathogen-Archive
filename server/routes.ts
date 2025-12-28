@@ -6,7 +6,7 @@ import { z } from "zod";
 import multer from "multer";
 import fs from "fs";
 import path from "path";
-import { runGCContentAnalysis, runMSAAnalysis, runPhylogenyAnalysis } from "./analyses";
+import { runMSAAnalysis, runPhylogenyAnalysis } from "./analyses";
 import microreactRoutes from "./routes-microreact";
 import searchRoutes from "./routes-search";
 import { parseFASTA, parseCSV, csvToMetadata } from "./utils/fasta-parser";
@@ -203,16 +203,11 @@ async function runAnalysis(analysisId: number, type: string, sequenceIds: number
 
     if (type === 'Phylogeny') {
       await runPhylogenyAnalysis(analysisId, [], storage, parameters);
-    } else {
+    } else if (type === 'msa' || type === 'MSA' || type === 'Multiple Sequence Alignment') {
       const sequences = await storage.getSequencesByIds(sequenceIds);
-      
-      if (type === 'GC Content') {
-        await runGCContentAnalysis(analysisId, sequences, storage);
-      } else if (type === 'MSA' || type === 'Multiple Sequence Alignment' || type === 'msa') {
-        await runMSAAnalysis(analysisId, sequences, storage);
-      } else {
-        throw new Error(`Unknown analysis type: ${type}`);
-      }
+      await runMSAAnalysis(analysisId, sequences, storage);
+    } else {
+      throw new Error(`Unknown analysis type: ${type}`);
     }
 
     clearTimeout(timeout);

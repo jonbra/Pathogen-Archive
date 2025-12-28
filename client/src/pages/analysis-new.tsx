@@ -11,22 +11,6 @@ import { Checkbox } from "@/components/ui/checkbox";
 
 const ANALYSIS_TYPES = [
   {
-    id: "gc_content",
-    title: "GC Content Analysis",
-    description: "Calculate GC percentage across selected sequences.",
-    icon: BarChart,
-    color: "text-emerald-500",
-    bgColor: "bg-emerald-500/10",
-  },
-  {
-    id: "nucleotide_dist",
-    title: "Nucleotide Distribution",
-    description: "Breakdown of A, T, G, C composition.",
-    icon: PieChart,
-    color: "text-blue-500",
-    bgColor: "bg-blue-500/10",
-  },
-  {
     id: "msa",
     title: "Multiple Sequence Alignment",
     description: "Align selected sequences using MAFFT.",
@@ -88,17 +72,6 @@ export default function NewAnalysisPage() {
         type: "Phylogeny",
         sequenceIds: [], // Not needed for phylogeny
         parameters: { msaAnalysisId: selectedMSAId }
-      }, {
-        onSuccess: () => {
-          toast({ title: "Analysis Started", description: "Job has been queued successfully." });
-          setLocation("/analyses");
-        }
-      });
-    } else if (selectedType === "gc_content" || selectedType === "nucleotide_dist") {
-      createAnalysis({
-        type: selectedType,
-        sequenceIds: Array.from(selectedSequenceIds),
-        parameters: {}
       }, {
         onSuccess: () => {
           toast({ title: "Analysis Started", description: "Job has been queued successfully." });
