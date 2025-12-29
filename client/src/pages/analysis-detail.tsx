@@ -1,10 +1,12 @@
 import { useAnalysis } from "@/hooks/use-analyses";
 import { MSAAndTreeResults, MicroreactViewer } from "@/components/analysis";
 import { useRoute } from "wouter";
+import { useMicroreactData } from "@/hooks/use-microreact";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import { Download, AlertTriangle } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 
 export default function AnalysisDetailPage() {
   const [, params] = useRoute("/analyses/:id");
@@ -36,9 +38,42 @@ export default function AnalysisDetailPage() {
       );
     }
 
-    // --- VISUALIZATIONS FOR RESULTS ---
-
-    // Type: MSA or Phylogeny (show viewers)
+    if ((analysis.type === "blastn" || analysis.type === "BLASTn") && Array.isArray(analysis.results?.hits)) {
+      return (
+        <div className="space-y-6">
+          <div className="rounded-xl border border-border overflow-hidden">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Query</TableHead>
+                  <TableHead>Subject</TableHead>
+                  <TableHead>Genotype</TableHead>
+                  <TableHead className="text-right">% Identity</TableHead>
+                  <TableHead className="text-right">Length</TableHead>
+                  <TableHead className="text-right">E-Value</TableHead>
+                  <TableHead className="text-right">Bit Score</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {analysis.results.hits.map((hit: any, i: number) => (
+                  <TableRow key={i}>
+                    <TableCell className="font-mono text-xs">{hit.queryId}</TableCell>
+                    <TableCell className="font-mono text-xs">{hit.subjectId}</TableCell>
+                    <TableCell>
+                      <Badge variant="outline">{hit.genotype}</Badge>
+                    </TableCell>
+                    <TableCell className="text-right">{hit.identity}%</TableCell>
+                    <TableCell className="text-right">{hit.alignmentLength}</TableCell>
+                    <TableCell className="text-right font-mono text-xs">{hit.eValue.toExponential(2)}</TableCell>
+                    <TableCell className="text-right">{hit.bitScore}</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+        </div>
+      );
+    }
     if ((analysis.type === "msa" || analysis.type === "MSA" || analysis.type === "Multiple Sequence Alignment") && Array.isArray(analysis.results?.sequences)) {
       // MSA: results.sequences: [{ accession, sequence }]
       return <MSAAndTreeResults msa={analysis.results.sequences} />;

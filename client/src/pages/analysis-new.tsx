@@ -3,7 +3,7 @@ import { useLocation } from "wouter";
 import { useCreateAnalysis, useAnalyses } from "@/hooks/use-analyses";
 import { useSequences } from "@/hooks/use-sequences";
 import { useToast } from "@/hooks/use-toast";
-import { BarChart, PieChart, Activity, Info, FileText } from "lucide-react";
+import { BarChart, PieChart, Activity, Info, FileText, Search } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -75,7 +75,10 @@ export default function NewAnalysisPage() {
       createAnalysis({
         type: "blastn",
         sequenceIds: Array.from(selectedSequenceIds),
-        parameters: { createNewDb: true } // Default to creating a new DB for now
+        parameters: { 
+          sequenceIds: Array.from(selectedSequenceIds),
+          createNewDb: true 
+        } 
       }, {
         onSuccess: () => {
           toast({ title: "Analysis Started", description: "Job has been queued successfully." });

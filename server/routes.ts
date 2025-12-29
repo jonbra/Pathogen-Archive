@@ -161,7 +161,7 @@ export async function registerRoutes(
 
   app.post(api.analyses.create.path, async (req, res) => {
     try {
-      const input = api.analyses.create.input.parse(req.body);
+      const input = api.analyses.create.input.parse(req.body) as any;
       const analysis = await storage.createAnalysis({
         type: input.type,
         parameters: input.parameters,
