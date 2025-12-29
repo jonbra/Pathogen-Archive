@@ -64,6 +64,10 @@ const MicroreactViewer: React.FC<Props> = ({ microreactData, title = "Phylogenet
           .attr("height", isFullscreen ? "800" : "500");
 
         // Initialize phylotree using d3.layout.phylotree (standard for 0.6.x)
+        if (!window.d3.layout || !window.d3.layout.phylotree) {
+          throw new Error("d3.layout.phylotree is not defined. Checking global phylotree...");
+        }
+        
         const tree = window.d3.layout.phylotree()
           .svg(svg)
           .options({
