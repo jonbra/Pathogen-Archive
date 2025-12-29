@@ -53,7 +53,7 @@ const MicroreactViewer: React.FC<Props> = ({ microreactData, title = "Phylogenet
   const rows = metadataRows.slice(1).filter((r) => r.trim());
 
   useEffect(() => {
-    if (activeTab === "tree" && treeData && treeContainerRef.current && window.d3 && window.phylotree) {
+    if (activeTab === "tree" && treeData && treeContainerRef.current && window.d3) {
       // Clear previous tree
       treeContainerRef.current.innerHTML = "";
       
@@ -61,30 +61,34 @@ const MicroreactViewer: React.FC<Props> = ({ microreactData, title = "Phylogenet
         const svg = window.d3.select(treeContainerRef.current)
           .append("svg")
           .attr("width", "100%")
-          .attr("height", isFullscreen ? "800" : "500")
-          .attr("class", "phylotree-svg");
+          .attr("height", isFullscreen ? "800" : "500");
 
-        const tree = new window.phylotree.phylotree(treeData);
-        
-        // Render tree
-        tree.render({
-          container: treeContainerRef.current,
-          "draw-size-nodes": true,
-          "node-styler": (element: any, data: any) => {
-            if (data.name) {
-              element.style("fill", "hsl(var(--primary))");
-            }
-          },
-          "edge-styler": (element: any) => {
-            element.style("stroke", "hsl(var(--border))");
-            element.style("stroke-width", "1.5px");
+        // Initialize phylotree using d3.layout.phylotree (standard for 0.6.x)
+        const tree = window.d3.layout.phylotree()
+          .svg(svg)
+          .options({
+            "draw-size-nodes": true,
+            "selectable": true,
+            "collapsible": true
+          });
+
+        // Parse Newick
+        tree(treeData);
+
+        // Styling
+        tree.style_nodes((element: any, data: any) => {
+          if (data.name) {
+            element.style("fill", "hsl(var(--primary))");
           }
         });
 
-        // Add responsiveness
-        const containerWidth = treeContainerRef.current.clientWidth;
-        tree.size([isFullscreen ? 800 : 500, containerWidth - 100]);
-        tree.update();
+        tree.style_edges((element: any) => {
+          element.style("stroke", "hsl(var(--border))");
+          element.style("stroke-width", "1.5px");
+        });
+
+        // Render
+        tree.layout();
 
       } catch (err) {
         console.error("Error rendering phylogenetic tree:", err);
