@@ -25,6 +25,14 @@ const ANALYSIS_TYPES = [
     icon: FileText,
     color: "text-orange-500",
     bgColor: "bg-orange-500/10",
+  },
+  {
+    id: "blastn",
+    title: "BLASTn",
+    description: "Search for sequences using BLASTn against a database of sequences.",
+    icon: Search,
+    color: "text-blue-500",
+    bgColor: "bg-blue-500/10",
   }
 ];
 
@@ -57,6 +65,17 @@ export default function NewAnalysisPage() {
         type: "msa",
         sequenceIds: Array.from(selectedSequenceIds),
         parameters: {}
+      }, {
+        onSuccess: () => {
+          toast({ title: "Analysis Started", description: "Job has been queued successfully." });
+          setLocation("/analyses");
+        }
+      });
+    } else if (selectedType === "blastn") {
+      createAnalysis({
+        type: "blastn",
+        sequenceIds: Array.from(selectedSequenceIds),
+        parameters: { createNewDb: true } // Default to creating a new DB for now
       }, {
         onSuccess: () => {
           toast({ title: "Analysis Started", description: "Job has been queued successfully." });

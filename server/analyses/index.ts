@@ -17,4 +17,5 @@
 
 export { runMSAAnalysis } from "./msa";
 export { runPhylogenyAnalysis } from "./phylogeny";
+export { runBlastAnalysis } from "./blast";
 export type { AnalysisHandler, AnalysisSequence } from "./types";

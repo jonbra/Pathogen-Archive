@@ -6,7 +6,7 @@ import { z } from "zod";
 import multer from "multer";
 import fs from "fs";
 import path from "path";
-import { runMSAAnalysis, runPhylogenyAnalysis } from "./analyses";
+import { runMSAAnalysis, runPhylogenyAnalysis, runBlastAnalysis } from "./analyses";
 import microreactRoutes from "./routes-microreact";
 import searchRoutes from "./routes-search";
 import { parseFASTA, parseCSV, csvToMetadata } from "./utils/fasta-parser";
@@ -203,6 +203,9 @@ async function runAnalysis(analysisId: number, type: string, sequenceIds: number
 
     if (type === 'Phylogeny') {
       await runPhylogenyAnalysis(analysisId, [], storage, parameters);
+    } else if (type === 'blastn') {
+      const sequences = await storage.getSequencesByIds(sequenceIds);
+      await runBlastAnalysis(analysisId, sequences, storage, parameters);
     } else if (type === 'msa' || type === 'MSA' || type === 'Multiple Sequence Alignment') {
       const sequences = await storage.getSequencesByIds(sequenceIds);
       await runMSAAnalysis(analysisId, sequences, storage);
