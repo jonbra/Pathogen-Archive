@@ -98,52 +98,60 @@ The application automatically detects and uses conda environments. If tools are 
 
 ### Setting Up Local Microreact Viewer (Optional)
 
-The application can integrate with a local [Microreact](https://microreact.org) viewer for enhanced phylogenetic visualization. This is optional - users can always download the `.microreact` file and upload it to the official Microreact website.
+The application includes the [Microreact](https://microreact.org) viewer as a git submodule for enhanced phylogenetic visualization. This provides full interactive features (tree, map, charts) without sending data to external servers.
 
-#### Option 1: Using the Official Docker Image
+#### Quick Start (Recommended)
 
-```bash
-# Run Microreact viewer on port 3001
-docker run -d --name microreact -p 3001:3000 microreact/microreact-viewer
-```
-
-Then configure the app to use it:
-
-```json
-// config.json
-{
-  "DATABASE_URL": "postgresql://...",
-  "MICROREACT_VIEWER_URL": "http://localhost:3001"
-}
-```
-
-#### Option 2: Clone and Run Locally
+The viewer is included as a submodule in the `viewer/` directory:
 
 ```bash
-# Clone the Microreact viewer repository
-git clone https://github.com/microreact/viewer.git microreact-viewer
-cd microreact-viewer
+# If you cloned without submodules, initialize them
+git submodule update --init --recursive
 
-# Install dependencies and run
-npm install
-npm start
+# Install viewer dependencies
+npm run viewer:install
+
+# Start both main app and viewer concurrently
+npm run dev:all
+
+# Or start them separately:
+npm run dev           # Main app on port 5000
+npm run dev:viewer    # Microreact viewer on port 3000
 ```
 
-Then add to `config.json`:
+The viewer is automatically configured in `config.json`:
 ```json
 {
+  "DATABASE_URL": "postgres:///pathogen_archive",
   "MICROREACT_VIEWER_URL": "http://localhost:3000"
 }
 ```
 
-#### How It Works
+#### Using the Viewer
 
-When `MICROREACT_VIEWER_URL` is configured:
-1. A "Open Local Viewer" button appears on phylogeny analysis results
-2. Clicking it opens the local Microreact viewer with the analysis data
-3. The viewer fetches the `.microreact` file from `/api/analyses/:id/microreact-file`
+When `MICROREACT_VIEWER_URL` is configured and the viewer is running:
 
-This approach allows full Microreact functionality (interactive trees, maps, charts) without sending data to external servers.
+1. **Embedded View**: On phylogeny analysis pages, toggle between "Simple Tree" and "Full Microreact" modes
+2. **New Tab**: Click "New Tab" to open the full viewer in a separate window
+3. **Download**: Download `.microreact` files to upload to microreact.org
+
+#### Alternative: Docker
+
+```bash
+docker run -d --name microreact -p 3000:3000 microreact/microreact-viewer
+```
+
+#### Production Deployment
+
+```bash
+# Build the viewer for production
+npm run viewer:build
+
+# Start production viewer
+npm run viewer:start
+```
+
+For automated deployment, consider a systemd service or Docker Compose setup to run both the main app and viewer.
 
 ## Project Structure
 

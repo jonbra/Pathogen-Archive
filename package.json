@@ -5,10 +5,15 @@
   "license": "MIT",
   "scripts": {
     "dev": "NODE_ENV=development tsx server/index.ts",
+    "dev:viewer": "cd viewer && npm run dev",
+    "dev:all": "concurrently \"npm run dev\" \"npm run dev:viewer\"",
     "build": "tsx script/build.ts",
     "start": "NODE_ENV=production node dist/index.cjs",
     "check": "tsc",
-    "db:push": "drizzle-kit push"
+    "db:push": "drizzle-kit push",
+    "viewer:install": "cd viewer && npm install",
+    "viewer:build": "cd viewer && npm run build",
+    "viewer:start": "cd viewer && npm run start"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.10.0",
@@ -100,6 +105,7 @@
     "@types/ws": "^8.18.1",
     "@vitejs/plugin-react": "^4.7.0",
     "autoprefixer": "^10.4.20",
+    "concurrently": "^9.2.1",
     "drizzle-kit": "^0.31.8",
     "esbuild": "^0.25.0",
     "postcss": "^8.4.47",

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
-import { Download, Maximize2, Minimize2, ExternalLink, Upload } from "lucide-react";
+import { Download, Maximize2, Minimize2, ExternalLink, Upload, Monitor, TreeDeciduous } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -49,7 +49,9 @@ const MicroreactViewer: React.FC<Props> = ({ microreactData, title = "Phylogenet
   const treeContainerRef = useRef<HTMLDivElement>(null);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [config, setConfig] = useState<MicroreactConfig | null>(null);
-  const [showLocalViewer, setShowLocalViewer] = useState(false);
+  const [viewMode, setViewMode] = useState<"simple" | "embedded">("simple");
+  const [iframeLoading, setIframeLoading] = useState(true);
+  const [iframeError, setIframeError] = useState(false);
 
   // Fetch Microreact config on mount
   useEffect(() => {
@@ -330,7 +332,7 @@ const MicroreactViewer: React.FC<Props> = ({ microreactData, title = "Phylogenet
     document.body.removeChild(element);
   };
 
-  // Open in local Microreact viewer
+  // Open in local Microreact viewer (new tab)
   const openInLocalViewer = () => {
     if (!config?.localViewerUrl || !analysisId) return;
     
@@ -341,34 +343,121 @@ const MicroreactViewer: React.FC<Props> = ({ microreactData, title = "Phylogenet
     window.open(viewerUrl, '_blank');
   };
 
+  // Get embedded viewer URL
+  const getEmbeddedViewerUrl = () => {
+    if (!config?.localViewerUrl || !analysisId) return null;
+    const microreactFileUrl = `${window.location.origin}/api/analyses/${analysisId}/microreact-file`;
+    return `${config.localViewerUrl}?file=${encodeURIComponent(microreactFileUrl)}`;
+  };
+
+  const embeddedViewerUrl = getEmbeddedViewerUrl();
+  const canUseEmbeddedViewer = !!embeddedViewerUrl;
+
   return (
     <div className="space-y-6">
+      {/* View mode toggle when local viewer is available */}
+      {canUseEmbeddedViewer && (
+        <div className="flex items-center justify-between bg-muted/50 rounded-lg p-3">
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+            <Monitor className="h-4 w-4" />
+            <span>Viewer Mode:</span>
+          </div>
+          <div className="flex gap-2">
+            <Button
+              size="sm"
+              variant={viewMode === "simple" ? "default" : "outline"}
+              onClick={() => setViewMode("simple")}
+              className="gap-1"
+            >
+              <TreeDeciduous className="w-3 h-3" />
+              Simple Tree
+            </Button>
+            <Button
+              size="sm"
+              variant={viewMode === "embedded" ? "default" : "outline"}
+              onClick={() => { setViewMode("embedded"); setIframeLoading(true); setIframeError(false); }}
+              className="gap-1"
+            >
+              <Monitor className="w-3 h-3" />
+              Full Microreact
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={openInLocalViewer}
+              className="gap-1"
+            >
+              <ExternalLink className="w-3 h-3" />
+              New Tab
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {/* Embedded Microreact Viewer (iframe) */}
+      {viewMode === "embedded" && embeddedViewerUrl && (
+        <Card className="overflow-hidden">
+          <div className="relative" style={{ height: isFullscreen ? "calc(100vh - 200px)" : "700px" }}>
+            {iframeLoading && !iframeError && (
+              <div className="absolute inset-0 flex items-center justify-center bg-muted/50 z-10">
+                <div className="text-center">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-2"></div>
+                  <p className="text-sm text-muted-foreground">Loading Microreact viewer...</p>
+                  <p className="text-xs text-muted-foreground mt-1">Make sure the viewer is running on port 3000</p>
+                </div>
+              </div>
+            )}
+            {iframeError && (
+              <div className="absolute inset-0 flex items-center justify-center bg-muted/50 z-10">
+                <div className="text-center">
+                  <p className="text-sm text-destructive font-medium">Failed to load Microreact viewer</p>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Is the viewer running? Start it with: <code className="bg-muted px-1 rounded">./scripts/start-viewer.sh</code>
+                  </p>
+                  <Button size="sm" variant="outline" className="mt-2" onClick={() => { setIframeLoading(true); setIframeError(false); }}>
+                    Retry
+                  </Button>
+                </div>
+              </div>
+            )}
+            <iframe
+              src={embeddedViewerUrl}
+              className="w-full h-full border-0"
+              onLoad={() => setIframeLoading(false)}
+              onError={() => { setIframeLoading(false); setIframeError(true); }}
+              title="Microreact Viewer"
+              allow="fullscreen"
+            />
+          </div>
+          <div className="p-2 bg-muted/30 border-t flex justify-between items-center">
+            <span className="text-xs text-muted-foreground">
+              Full Microreact viewer with interactive tree, map, and charts
+            </span>
+            <Button size="sm" variant="ghost" onClick={() => setIsFullscreen(!isFullscreen)}>
+              {isFullscreen ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}
+            </Button>
+          </div>
+        </Card>
+      )}
+
+      {/* Simple viewer (original implementation) */}
+      {viewMode === "simple" && (
+        <>
       {/* Upload to Microreact info */}
       <Alert className="bg-blue-50 dark:bg-blue-950 border-blue-200 dark:border-blue-800">
         <Upload className="h-4 w-4" />
         <AlertDescription className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
           <span className="text-sm">
             {config?.localViewerUrl ? (
-              <>Open in local Microreact viewer or download the <strong>.microreact</strong> file for the official site.</>
+              <>Download the <strong>.microreact</strong> file for the official Microreact website.</>
             ) : (
               <>Download the <strong>.microreact</strong> file and upload it to the official Microreact website for advanced visualization features.</>
             )}
           </span>
           <div className="flex gap-2 flex-wrap">
-            {config?.localViewerUrl && analysisId && (
-              <Button
-                size="sm"
-                variant="default"
-                onClick={openInLocalViewer}
-                className="gap-1"
-              >
-                <ExternalLink className="w-3 h-3" />
-                Open Local Viewer
-              </Button>
-            )}
             <Button
               size="sm"
-              variant={config?.localViewerUrl ? "outline" : "default"}
+              variant="default"
               onClick={downloadMicroreactFile}
               className="gap-1"
             >
@@ -552,6 +641,8 @@ const MicroreactViewer: React.FC<Props> = ({ microreactData, title = "Phylogenet
             ))}
           </div>
         </Card>
+      )}
+        </>
       )}
     </div>
   );
