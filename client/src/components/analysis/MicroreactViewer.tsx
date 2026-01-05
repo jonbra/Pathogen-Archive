@@ -48,8 +48,30 @@ const MicroreactViewer: React.FC<Props> = ({ microreactData, title = "Phylogenet
 
   const treeData = data.files?.tree?.data;
   const metadataData = data.files?.metadata?.data;
-  const metadataRows = metadataData ? metadataData.split("\n") : [];
-  const headers = metadataRows[0]?.split(",") || [];
+  
+  // Parse CSV properly (handle quoted values with commas)
+  const parseCSVRow = (row: string): string[] => {
+    const result: string[] = [];
+    let current = '';
+    let inQuotes = false;
+    
+    for (let i = 0; i < row.length; i++) {
+      const char = row[i];
+      if (char === '"') {
+        inQuotes = !inQuotes;
+      } else if (char === ',' && !inQuotes) {
+        result.push(current.trim());
+        current = '';
+      } else {
+        current += char;
+      }
+    }
+    result.push(current.trim());
+    return result;
+  };
+  
+  const metadataRows = metadataData ? metadataData.split("\n").filter(r => r.trim()) : [];
+  const headers = metadataRows[0] ? parseCSVRow(metadataRows[0]) : [];
   const rows = metadataRows.slice(1).filter((r) => r.trim());
 
   useEffect(() => {
@@ -58,48 +80,195 @@ const MicroreactViewer: React.FC<Props> = ({ microreactData, title = "Phylogenet
       treeContainerRef.current.innerHTML = "";
       
       try {
+        const containerWidth = treeContainerRef.current.clientWidth || 800;
+        const containerHeight = isFullscreen ? 800 : 500;
+        
         const svg = window.d3.select(treeContainerRef.current)
           .append("svg")
-          .attr("width", "100%")
-          .attr("height", isFullscreen ? "800" : "500");
+          .attr("width", containerWidth)
+          .attr("height", containerHeight);
 
-        // Initialize phylotree using d3.layout.phylotree (standard for 0.6.x)
-        if (!window.d3.layout || !window.d3.layout.phylotree) {
-          throw new Error("d3.layout.phylotree is not defined. Checking global phylotree...");
-        }
+        // phylotree.js v1.x+ uses the phylotree global directly
+        // Check for different API patterns
+        let tree: any;
         
-        const tree = window.d3.layout.phylotree()
-          .svg(svg)
-          .options({
-            "draw-size-nodes": true,
-            "selectable": true,
-            "collapsible": true
+        if (window.phylotree && typeof window.phylotree === 'function') {
+          // phylotree v1.x style: phylotree(newick) returns tree object
+          tree = window.phylotree(treeData);
+        } else if (window.phylotree && window.phylotree.phylotree) {
+          // Some builds export as phylotree.phylotree
+          tree = new window.phylotree.phylotree(treeData);
+        } else if (window.d3.layout && window.d3.layout.phylotree) {
+          // Legacy d3.layout.phylotree style (older versions)
+          tree = window.d3.layout.phylotree()(treeData);
+        } else {
+          // Fallback: render tree manually using simple D3 visualization
+          renderSimpleTree(svg, treeData, containerWidth, containerHeight);
+          return;
+        }
+
+        // Configure and render if we got a tree object
+        if (tree && tree.render) {
+          tree.render({
+            container: svg,
+            width: containerWidth,
+            height: containerHeight,
+            "draw-size-bubbles": false,
+            selectable: true,
+            collapsible: true
           });
-
-        // Parse Newick
-        tree(treeData);
-
-        // Styling
-        tree.style_nodes((element: any, data: any) => {
-          if (data.name) {
-            element.style("fill", "hsl(var(--primary))");
-          }
-        });
-
-        tree.style_edges((element: any) => {
-          element.style("stroke", "hsl(var(--border))");
-          element.style("stroke-width", "1.5px");
-        });
-
-        // Render
-        tree.layout();
+        } else if (tree && tree.svg) {
+          tree.svg(svg);
+          tree.layout();
+        }
 
       } catch (err) {
         console.error("Error rendering phylogenetic tree:", err);
-        treeContainerRef.current.innerHTML = `<div class="p-4 text-destructive">Error rendering tree: ${String(err)}</div>`;
+        // Fallback to simple tree rendering
+        try {
+          const containerWidth = treeContainerRef.current!.clientWidth || 800;
+          const containerHeight = isFullscreen ? 800 : 500;
+          treeContainerRef.current!.innerHTML = "";
+          const svg = window.d3.select(treeContainerRef.current)
+            .append("svg")
+            .attr("width", containerWidth)
+            .attr("height", containerHeight);
+          renderSimpleTree(svg, treeData, containerWidth, containerHeight);
+        } catch (fallbackErr) {
+          console.error("Fallback rendering also failed:", fallbackErr);
+          treeContainerRef.current!.innerHTML = `<div class="p-4 text-destructive">Error rendering tree: ${String(err)}</div>`;
+        }
       }
     }
   }, [activeTab, treeData, isFullscreen]);
+
+  // Simple Newick tree parser and renderer as fallback
+  const renderSimpleTree = (svg: any, newick: string, width: number, height: number) => {
+    // Parse Newick format into a tree structure
+    const parseNewick = (str: string): any => {
+      const ancestors: any[] = [];
+      let tree: any = {};
+      const tokens = str.split(/\s*(;|\(|\)|,|:)\s*/);
+      let subtree: any;
+      
+      for (let i = 0; i < tokens.length; i++) {
+        const token = tokens[i];
+        switch (token) {
+          case '(':
+            subtree = {};
+            tree.children = [subtree];
+            ancestors.push(tree);
+            tree = subtree;
+            break;
+          case ',':
+            subtree = {};
+            ancestors[ancestors.length - 1].children.push(subtree);
+            tree = subtree;
+            break;
+          case ')':
+            tree = ancestors.pop();
+            break;
+          case ':':
+            break;
+          default:
+            const x = tokens[i - 1];
+            if (x === ')' || x === '(' || x === ',') {
+              tree.name = token;
+            } else if (x === ':') {
+              tree.length = parseFloat(token);
+            }
+        }
+      }
+      return tree;
+    };
+
+    const root = parseNewick(newick);
+    
+    // Count leaves for layout
+    const countLeaves = (node: any): number => {
+      if (!node.children) return 1;
+      return node.children.reduce((sum: number, child: any) => sum + countLeaves(child), 0);
+    };
+    
+    const leafCount = countLeaves(root);
+    const margin = { top: 20, right: 120, bottom: 20, left: 40 };
+    const innerWidth = width - margin.left - margin.right;
+    const innerHeight = height - margin.top - margin.bottom;
+    
+    // Assign positions
+    let leafIndex = 0;
+    const assignPositions = (node: any, depth: number): void => {
+      node.depth = depth;
+      if (!node.children) {
+        node.y = (leafIndex / (leafCount - 1 || 1)) * innerHeight;
+        leafIndex++;
+      } else {
+        node.children.forEach((child: any) => assignPositions(child, depth + 1));
+        const ys = node.children.map((c: any) => c.y);
+        node.y = (Math.min(...ys) + Math.max(...ys)) / 2;
+      }
+    };
+    
+    // Find max depth
+    const getMaxDepth = (node: any): number => {
+      if (!node.children) return 0;
+      return 1 + Math.max(...node.children.map(getMaxDepth));
+    };
+    
+    assignPositions(root, 0);
+    const maxDepth = getMaxDepth(root) || 1;
+    
+    const g = svg.append("g")
+      .attr("transform", `translate(${margin.left},${margin.top})`);
+    
+    // Draw tree recursively
+    const drawNode = (node: any) => {
+      const x = (node.depth / maxDepth) * innerWidth;
+      
+      if (node.children) {
+        node.children.forEach((child: any) => {
+          const childX = (child.depth / maxDepth) * innerWidth;
+          // Draw horizontal line to child level
+          g.append("line")
+            .attr("x1", x)
+            .attr("y1", node.y)
+            .attr("x2", x)
+            .attr("y2", child.y)
+            .attr("stroke", "hsl(var(--border))")
+            .attr("stroke-width", 1.5);
+          // Draw vertical line to child
+          g.append("line")
+            .attr("x1", x)
+            .attr("y1", child.y)
+            .attr("x2", childX)
+            .attr("y2", child.y)
+            .attr("stroke", "hsl(var(--border))")
+            .attr("stroke-width", 1.5);
+          drawNode(child);
+        });
+      }
+      
+      // Draw node
+      g.append("circle")
+        .attr("cx", x)
+        .attr("cy", node.y)
+        .attr("r", 4)
+        .attr("fill", node.children ? "hsl(var(--muted-foreground))" : "hsl(var(--primary))");
+      
+      // Draw label for leaves
+      if (!node.children && node.name) {
+        g.append("text")
+          .attr("x", x + 8)
+          .attr("y", node.y)
+          .attr("dy", "0.35em")
+          .attr("font-size", "11px")
+          .attr("fill", "hsl(var(--foreground))")
+          .text(node.name);
+      }
+    };
+    
+    drawNode(root);
+  };
 
   const downloadMicroreactFile = () => {
     const jsonString = JSON.stringify(data, null, 2);
@@ -260,7 +429,7 @@ const MicroreactViewer: React.FC<Props> = ({ microreactData, title = "Phylogenet
                   </thead>
                   <tbody>
                     {rows.map((row, rowIdx) => {
-                      const cells = row.split(",");
+                      const cells = parseCSVRow(row);
                       return (
                         <tr
                           key={rowIdx}
@@ -268,7 +437,7 @@ const MicroreactViewer: React.FC<Props> = ({ microreactData, title = "Phylogenet
                         >
                           {cells.map((cell, cellIdx) => (
                             <td key={cellIdx} className="p-3 font-mono text-xs whitespace-nowrap">
-                              {cell}
+                              {cell || '—'}
                             </td>
                           ))}
                         </tr>

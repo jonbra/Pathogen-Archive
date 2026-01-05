@@ -143,11 +143,34 @@ export function generateMicroreactFromAnalysis(
     return null;
   }
 
+  // Filter sequences to only include those that appear in the tree
+  // Extract taxa names from the Newick string (names are before : or , or ) characters)
+  const taxaInTree = new Set<string>();
+  const taxaRegex = /([^(),;:]+)(?=:)/g;
+  let match;
+  while ((match = taxaRegex.exec(newick)) !== null) {
+    const taxon = match[1].trim();
+    if (taxon) {
+      taxaInTree.add(taxon);
+    }
+  }
+
+  // Filter sequences to only those in the tree
+  const filteredSequences = sequences.filter(seq => 
+    taxaInTree.has(seq.accession) || 
+    Array.from(taxaInTree).some(taxon => 
+      taxon.includes(seq.accession) || seq.accession.includes(taxon)
+    )
+  );
+
+  // Use filtered sequences, or fall back to all if no matches found
+  const sequencesToUse = filteredSequences.length > 0 ? filteredSequences : sequences;
+
   return createMicroreactFile(
     analysis.id,
     analysis.type,
     newick,
-    sequences,
+    sequencesToUse,
     analysis.results?.metadata || {}
   );
 }
