@@ -15,6 +15,19 @@ import { apiRequest, queryClient } from "@/lib/queryClient";
 import { Search, Save, Play, CheckSquare, Square } from "lucide-react";
 import { useLocation } from "wouter";
 
+// Build search URL with query parameters
+function buildSearchUrl(params: SequenceSearchParams): string {
+  const searchParams = new URLSearchParams();
+  if (params.sequenceId) searchParams.set("sequenceId", params.sequenceId);
+  if (params.samplingDate) searchParams.set("samplingDate", params.samplingDate);
+  if (params.country) searchParams.set("country", params.country);
+  if (params.genotype) searchParams.set("genotype", params.genotype);
+  if (params.outbreak) searchParams.set("outbreak", params.outbreak);
+  if (params.requireComplete) searchParams.set("requireComplete", "true");
+  const queryString = searchParams.toString();
+  return queryString ? `/api/sequences/search?${queryString}` : "/api/sequences/search";
+}
+
 export default function SearchPage() {
   const [params, setParams] = useState<SequenceSearchParams>({});
   const [selectedIds, setSelectedIds] = useState<number[]>([]);
@@ -25,7 +38,7 @@ export default function SearchPage() {
   const [, setLocation] = useLocation();
 
   const { data: results, isLoading, refetch } = useQuery<Sequence[]>({
-    queryKey: ["/api/sequences/search", params],
+    queryKey: [buildSearchUrl(params)],
     enabled: false,
   });
 
