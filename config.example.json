@@ -1,3 +1,4 @@
 {
-  "DATABASE_URL": "postgres:///pathogen_archive"
+  "DATABASE_URL": "postgres:///pathogen_archive",
+  "MICROREACT_VIEWER_URL": null
 }

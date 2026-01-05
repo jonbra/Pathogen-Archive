@@ -77,7 +77,7 @@ export function generateMetadataCSV(sequences: Sequence[]): string {
           return `"${str.replace(/"/g, '""')}"`;
         }
         return str;
-      })
+      }).join(",")
     ),
   ].join("\n");
 
@@ -124,6 +124,78 @@ export function createMicroreactFile(
 }
 
 /**
+ * Create a .microreact file directly from taxa names in tree (when database matching fails)
+ * Parses the pipe-delimited taxa names to extract metadata
+ */
+export function createMicroreactFileFromTaxa(
+  analysisId: number,
+  analysisType: string,
+  newick: string,
+  taxaSet: Set<string>,
+  metadata?: Record<string, any>
+): MicroreactFile {
+  // Generate CSV from taxa names
+  // Taxa format appears to be: 2PA|ID|Genotype|Outbreak
+  const headers = ["id", "accession", "genotype", "outbreak"];
+  
+  const rows: string[][] = [];
+  let idx = 1;
+  for (const taxon of taxaSet) {
+    const parts = taxon.split('|');
+    // Parse the taxon name: typically "2PA|ID|Genotype|Outbreak"
+    const accession = taxon; // Full taxon name as accession (for tree matching)
+    const genotype = parts.length >= 3 ? parts[2] : '';
+    const outbreak = parts.length >= 4 ? parts[3] : '';
+    
+    rows.push([
+      String(idx++),
+      accession,
+      genotype,
+      outbreak,
+    ]);
+  }
+
+  const csvContent = [
+    headers.join(","),
+    ...rows.map((row) =>
+      row.map((cell) => {
+        const str = String(cell);
+        if (str.includes(",") || str.includes('"') || str.includes("\n")) {
+          return `"${str.replace(/"/g, '""')}"`;
+        }
+        return str;
+      }).join(",")
+    ),
+  ].join("\n");
+
+  const microreactFile: MicroreactFile = {
+    $schema: "https://microreact.org/schema/v1",
+    name: `${analysisType} Analysis - Project ${analysisId}`,
+    description: `Phylogenetic analysis with ${taxaSet.size} sequences. Generated from analysis ID ${analysisId}.`,
+    files: {
+      tree: {
+        name: `tree_${analysisId}.nwk`,
+        format: "newick",
+        data: newick,
+      },
+      metadata: {
+        name: `metadata_${analysisId}.csv`,
+        format: "csv",
+        data: csvContent,
+      },
+    },
+    settings: {
+      mapPointsSize: 8,
+      mapBoundaries: true,
+      treeType: "rectangular",
+    },
+    ...metadata,
+  };
+
+  return microreactFile;
+}
+
+/**
  * Generate a .microreact file from an analysis result
  */
 export function generateMicroreactFromAnalysis(
@@ -144,33 +216,67 @@ export function generateMicroreactFromAnalysis(
   }
 
   // Filter sequences to only include those that appear in the tree
-  // Extract taxa names from the Newick string (names are before : or , or ) characters)
+  // Extract taxa names from the Newick string (names are before : characters)
   const taxaInTree = new Set<string>();
-  const taxaRegex = /([^(),;:]+)(?=:)/g;
+  
+  // More robust regex to extract taxa names from Newick format
+  // Taxa names appear before : (branch length) and can contain |, letters, numbers, etc.
+  // Match everything that's not a Newick special character, followed by :
+  const taxaRegex = /([^(),;:\s]+):/g;
   let match;
   while ((match = taxaRegex.exec(newick)) !== null) {
     const taxon = match[1].trim();
-    if (taxon) {
+    if (taxon && taxon.length > 0) {
       taxaInTree.add(taxon);
     }
   }
 
+  console.log(`[microreact] Found ${taxaInTree.size} taxa in tree:`, Array.from(taxaInTree));
+  console.log(`[microreact] Total sequences provided: ${sequences.length}`);
+
   // Filter sequences to only those in the tree
-  const filteredSequences = sequences.filter(seq => 
-    taxaInTree.has(seq.accession) || 
-    Array.from(taxaInTree).some(taxon => 
-      taxon.includes(seq.accession) || seq.accession.includes(taxon)
-    )
-  );
+  // Match by exact accession
+  const filteredSequences = sequences.filter(seq => {
+    const accession = seq.accession || '';
+    return taxaInTree.has(accession);
+  });
 
-  // Use filtered sequences, or fall back to all if no matches found
-  const sequencesToUse = filteredSequences.length > 0 ? filteredSequences : sequences;
+  console.log(`[microreact] Filtered to ${filteredSequences.length} sequences`);
 
-  return createMicroreactFile(
+  // If filtering produced results, use them
+  if (filteredSequences.length > 0) {
+    return createMicroreactFile(
+      analysis.id,
+      analysis.type,
+      newick,
+      filteredSequences,
+      analysis.results?.metadata || {}
+    );
+  }
+
+  // If no matches, check analysis parameters for sequenceIds
+  const analysisSequenceIds = analysis.parameters?.sequenceIds as number[] | undefined;
+  if (analysisSequenceIds && analysisSequenceIds.length > 0) {
+    const idFilteredSequences = sequences.filter(seq => analysisSequenceIds.includes(seq.id));
+    console.log(`[microreact] Fallback: Using ${idFilteredSequences.length} sequences from analysis parameters`);
+    if (idFilteredSequences.length > 0) {
+      return createMicroreactFile(
+        analysis.id,
+        analysis.type,
+        newick,
+        idFilteredSequences,
+        analysis.results?.metadata || {}
+      );
+    }
+  }
+
+  // Last resort: create metadata directly from taxa names in tree
+  console.log(`[microreact] Creating minimal metadata from tree taxa`);
+  return createMicroreactFileFromTaxa(
     analysis.id,
     analysis.type,
     newick,
-    sequencesToUse,
+    taxaInTree,
     analysis.results?.metadata || {}
   );
 }

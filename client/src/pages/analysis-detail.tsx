@@ -81,7 +81,7 @@ export default function AnalysisDetailPage() {
     if ((analysis.type === "phylogeny" || analysis.type === "Phylogeny") && (typeof analysis.results?.tree === "string" || microreactData)) {
       // Phylogeny: use Microreact viewer
       if (microreactData) {
-        return <MicroreactViewer microreactData={microreactData} />;
+        return <MicroreactViewer microreactData={microreactData} analysisId={id} />;
       }
       return <div className="p-8 text-center">Loading phylogenetic data...</div>;
     }

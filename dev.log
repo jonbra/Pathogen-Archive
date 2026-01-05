@@ -1,0 +1,65 @@
+nohup: ignoring input
+
+> rest-express@1.0.0 dev
+> NODE_ENV=development tsx server/index.ts
+
+Initializing pg Pool with config: {
+  max: 20,
+  idleTimeoutMillis: 30000,
+  connectionTimeoutMillis: 5000,
+  database: 'pathogen_archive',
+  user: 'jon.brate@fhi.no',
+  host: '/var/run/postgresql'
+}
+1:35:34 PM [express] serving on port 5000
+[microreact] Found 4 taxa in tree: [
+  '2PA|IRE_2025_HAV_IA|Ia|Request',
+  '2PA|1039760|Ia|NOR-2025-V1b',
+  '2PA|1042022|Ia|NOR-2025-V1a',
+  '2PA|1038476|Ia|NOR-2025-V1a'
+]
+[microreact] Total sequences provided: 480
+[microreact] Filtered to 4 sequences
+1:35:46 PM [express] GET /api/microreact/6 200 in 40ms :: {"$schema":"https://microreact.org/schema/v1","name":"Phylogeny Analysis - Project 6","description":"Phylogenetic analysis with 4 sequences. Generated from analysis ID 6.","files":{"tree":{"name":"tree_6.nwk","format":"newick","data":"(2PA|IRE_2025_HAV_IA|Ia|Request:0.0000010000,2PA|1039760|Ia|NOR-2025-V1b:0.0020669073,(2PA|1042022|Ia|NOR-2025-V1a:0.0000010000,2PA|1038476|Ia|NOR-2025-V1a:0.0000010000):0.0000010000);"},"metadata":{"name":"metadata_6.csv","format":"csv","data":"id,accession,sequence_length,sampling_date,country,genotype,outbreak\n476,2PA|IRE_2025_HAV_IA|Ia|Request,460,,,Ia,Request\n478,2PA|1039760|Ia|NOR-2025-V1b,484,,,Ia,NOR-2025-V1b\n479,2PA|1042022|Ia|NOR-2025-V1a,491,,,Ia,NOR-2025-V1a\n480,2PA|1038476|Ia|NOR-2025-V1a,491,,,Ia,NOR-2025-V1a"}},"settings":{"mapPointsSize":8,"mapBoundaries":true,"treeType":"rectangular"}}
+[microreact] Found 4 taxa in tree: [
+  '2PA|IRE_2025_HAV_IA|Ia|Request',
+  '2PA|1039760|Ia|NOR-2025-V1b',
+  '2PA|1042022|Ia|NOR-2025-V1a',
+  '2PA|1038476|Ia|NOR-2025-V1a'
+]
+[microreact] Total sequences provided: 480
+[microreact] Filtered to 4 sequences
+1:35:57 PM [express] GET /api/microreact/6 200 in 18ms :: {"$schema":"https://microreact.org/schema/v1","name":"Phylogeny Analysis - Project 6","description":"Phylogenetic analysis with 4 sequences. Generated from analysis ID 6.","files":{"tree":{"name":"tree_6.nwk","format":"newick","data":"(2PA|IRE_2025_HAV_IA|Ia|Request:0.0000010000,2PA|1039760|Ia|NOR-2025-V1b:0.0020669073,(2PA|1042022|Ia|NOR-2025-V1a:0.0000010000,2PA|1038476|Ia|NOR-2025-V1a:0.0000010000):0.0000010000);"},"metadata":{"name":"metadata_6.csv","format":"csv","data":"id,accession,sequence_length,sampling_date,country,genotype,outbreak\n476,2PA|IRE_2025_HAV_IA|Ia|Request,460,,,Ia,Request\n478,2PA|1039760|Ia|NOR-2025-V1b,484,,,Ia,NOR-2025-V1b\n479,2PA|1042022|Ia|NOR-2025-V1a,491,,,Ia,NOR-2025-V1a\n480,2PA|1038476|Ia|NOR-2025-V1a,491,,,Ia,NOR-2025-V1a"}},"settings":{"mapPointsSize":8,"mapBoundaries":true,"treeType":"rectangular"}}
+1:36:11 PM [express] GET /api/analyses/6 304 in 4ms :: {"id":6,"type":"Phylogeny","parameters":{"msaAnalysisId":5},"status":"completed","results":{"tree":"(2PA|IRE_2025_HAV_IA|Ia|Request:0.0000010000,2PA|1039760|Ia|NOR-2025-V1b:0.0020669073,(2PA|1042022|Ia|NOR-2025-V1a:0.0000010000,2PA|1038476|Ia|NOR-2025-V1a:0.0000010000):0.0000010000);","type":"Phylogeny","method":"GTR+G model with IQ-TREE","timestamp":"2026-01-05T12:52:57.099Z","sequenceCount":0},"createdAt":"2026-01-05T12:52:35.626Z"}
+[microreact] Found 4 taxa in tree: [
+  '2PA|IRE_2025_HAV_IA|Ia|Request',
+  '2PA|1039760|Ia|NOR-2025-V1b',
+  '2PA|1042022|Ia|NOR-2025-V1a',
+  '2PA|1038476|Ia|NOR-2025-V1a'
+]
+[microreact] Total sequences provided: 480
+[microreact] Filtered to 4 sequences
+1:36:11 PM [express] GET /api/microreact/6 200 in 12ms :: {"$schema":"https://microreact.org/schema/v1","name":"Phylogeny Analysis - Project 6","description":"Phylogenetic analysis with 4 sequences. Generated from analysis ID 6.","files":{"tree":{"name":"tree_6.nwk","format":"newick","data":"(2PA|IRE_2025_HAV_IA|Ia|Request:0.0000010000,2PA|1039760|Ia|NOR-2025-V1b:0.0020669073,(2PA|1042022|Ia|NOR-2025-V1a:0.0000010000,2PA|1038476|Ia|NOR-2025-V1a:0.0000010000):0.0000010000);"},"metadata":{"name":"metadata_6.csv","format":"csv","data":"id,accession,sequence_length,sampling_date,country,genotype,outbreak\n476,2PA|IRE_2025_HAV_IA|Ia|Request,460,,,Ia,Request\n478,2PA|1039760|Ia|NOR-2025-V1b,484,,,Ia,NOR-2025-V1b\n479,2PA|1042022|Ia|NOR-2025-V1a,491,,,Ia,NOR-2025-V1a\n480,2PA|1038476|Ia|NOR-2025-V1a,491,,,Ia,NOR-2025-V1a"}},"settings":{"mapPointsSize":8,"mapBoundaries":true,"treeType":"rectangular"}}
+1:36:11 PM [express] GET /api/microreact/config 200 in 1ms :: {"localViewerUrl":null,"officialUrl":"https://microreact.org","uploadUrl":"https://microreact.org/upload"}
+1:38:00 PM [express] GET /api/analyses/6 304 in 16ms :: {"id":6,"type":"Phylogeny","parameters":{"msaAnalysisId":5},"status":"completed","results":{"tree":"(2PA|IRE_2025_HAV_IA|Ia|Request:0.0000010000,2PA|1039760|Ia|NOR-2025-V1b:0.0020669073,(2PA|1042022|Ia|NOR-2025-V1a:0.0000010000,2PA|1038476|Ia|NOR-2025-V1a:0.0000010000):0.0000010000);","type":"Phylogeny","method":"GTR+G model with IQ-TREE","timestamp":"2026-01-05T12:52:57.099Z","sequenceCount":0},"createdAt":"2026-01-05T12:52:35.626Z"}
+[microreact] Found 4 taxa in tree: [
+  '2PA|IRE_2025_HAV_IA|Ia|Request',
+  '2PA|1039760|Ia|NOR-2025-V1b',
+  '2PA|1042022|Ia|NOR-2025-V1a',
+  '2PA|1038476|Ia|NOR-2025-V1a'
+]
+[microreact] Total sequences provided: 480
+[microreact] Filtered to 4 sequences
+1:38:00 PM [express] GET /api/microreact/6 304 in 21ms :: {"$schema":"https://microreact.org/schema/v1","name":"Phylogeny Analysis - Project 6","description":"Phylogenetic analysis with 4 sequences. Generated from analysis ID 6.","files":{"tree":{"name":"tree_6.nwk","format":"newick","data":"(2PA|IRE_2025_HAV_IA|Ia|Request:0.0000010000,2PA|1039760|Ia|NOR-2025-V1b:0.0020669073,(2PA|1042022|Ia|NOR-2025-V1a:0.0000010000,2PA|1038476|Ia|NOR-2025-V1a:0.0000010000):0.0000010000);"},"metadata":{"name":"metadata_6.csv","format":"csv","data":"id,accession,sequence_length,sampling_date,country,genotype,outbreak\n476,2PA|IRE_2025_HAV_IA|Ia|Request,460,,,Ia,Request\n478,2PA|1039760|Ia|NOR-2025-V1b,484,,,Ia,NOR-2025-V1b\n479,2PA|1042022|Ia|NOR-2025-V1a,491,,,Ia,NOR-2025-V1a\n480,2PA|1038476|Ia|NOR-2025-V1a,491,,,Ia,NOR-2025-V1a"}},"settings":{"mapPointsSize":8,"mapBoundaries":true,"treeType":"rectangular"}}
+1:38:00 PM [express] GET /api/microreact/config 304 in 1ms :: {"localViewerUrl":null,"officialUrl":"https://microreact.org","uploadUrl":"https://microreact.org/upload"}
+1:38:28 PM [express] GET /api/analyses/6 304 in 2ms :: {"id":6,"type":"Phylogeny","parameters":{"msaAnalysisId":5},"status":"completed","results":{"tree":"(2PA|IRE_2025_HAV_IA|Ia|Request:0.0000010000,2PA|1039760|Ia|NOR-2025-V1b:0.0020669073,(2PA|1042022|Ia|NOR-2025-V1a:0.0000010000,2PA|1038476|Ia|NOR-2025-V1a:0.0000010000):0.0000010000);","type":"Phylogeny","method":"GTR+G model with IQ-TREE","timestamp":"2026-01-05T12:52:57.099Z","sequenceCount":0},"createdAt":"2026-01-05T12:52:35.626Z"}
+[microreact] Found 4 taxa in tree: [
+  '2PA|IRE_2025_HAV_IA|Ia|Request',
+  '2PA|1039760|Ia|NOR-2025-V1b',
+  '2PA|1042022|Ia|NOR-2025-V1a',
+  '2PA|1038476|Ia|NOR-2025-V1a'
+]
+[microreact] Total sequences provided: 480
+[microreact] Filtered to 4 sequences
+1:38:28 PM [express] GET /api/microreact/6 304 in 11ms :: {"$schema":"https://microreact.org/schema/v1","name":"Phylogeny Analysis - Project 6","description":"Phylogenetic analysis with 4 sequences. Generated from analysis ID 6.","files":{"tree":{"name":"tree_6.nwk","format":"newick","data":"(2PA|IRE_2025_HAV_IA|Ia|Request:0.0000010000,2PA|1039760|Ia|NOR-2025-V1b:0.0020669073,(2PA|1042022|Ia|NOR-2025-V1a:0.0000010000,2PA|1038476|Ia|NOR-2025-V1a:0.0000010000):0.0000010000);"},"metadata":{"name":"metadata_6.csv","format":"csv","data":"id,accession,sequence_length,sampling_date,country,genotype,outbreak\n476,2PA|IRE_2025_HAV_IA|Ia|Request,460,,,Ia,Request\n478,2PA|1039760|Ia|NOR-2025-V1b,484,,,Ia,NOR-2025-V1b\n479,2PA|1042022|Ia|NOR-2025-V1a,491,,,Ia,NOR-2025-V1a\n480,2PA|1038476|Ia|NOR-2025-V1a,491,,,Ia,NOR-2025-V1a"}},"settings":{"mapPointsSize":8,"mapBoundaries":true,"treeType":"rectangular"}}
+1:38:28 PM [express] GET /api/microreact/config 304 in 0ms :: {"localViewerUrl":null,"officialUrl":"https://microreact.org","uploadUrl":"https://microreact.org/upload"}

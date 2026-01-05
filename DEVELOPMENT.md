@@ -96,6 +96,55 @@ conda install -c conda-forge r-base
 
 The application automatically detects and uses conda environments. If tools are not in system PATH, the app will try `conda run -n bioinformatics <tool>`. For custom environment names, modify `server/analyses/conda.ts`.
 
+### Setting Up Local Microreact Viewer (Optional)
+
+The application can integrate with a local [Microreact](https://microreact.org) viewer for enhanced phylogenetic visualization. This is optional - users can always download the `.microreact` file and upload it to the official Microreact website.
+
+#### Option 1: Using the Official Docker Image
+
+```bash
+# Run Microreact viewer on port 3001
+docker run -d --name microreact -p 3001:3000 microreact/microreact-viewer
+```
+
+Then configure the app to use it:
+
+```json
+// config.json
+{
+  "DATABASE_URL": "postgresql://...",
+  "MICROREACT_VIEWER_URL": "http://localhost:3001"
+}
+```
+
+#### Option 2: Clone and Run Locally
+
+```bash
+# Clone the Microreact viewer repository
+git clone https://github.com/microreact/viewer.git microreact-viewer
+cd microreact-viewer
+
+# Install dependencies and run
+npm install
+npm start
+```
+
+Then add to `config.json`:
+```json
+{
+  "MICROREACT_VIEWER_URL": "http://localhost:3000"
+}
+```
+
+#### How It Works
+
+When `MICROREACT_VIEWER_URL` is configured:
+1. A "Open Local Viewer" button appears on phylogeny analysis results
+2. Clicking it opens the local Microreact viewer with the analysis data
+3. The viewer fetches the `.microreact` file from `/api/analyses/:id/microreact-file`
+
+This approach allows full Microreact functionality (interactive trees, maps, charts) without sending data to external servers.
+
 ## Project Structure
 
 ```

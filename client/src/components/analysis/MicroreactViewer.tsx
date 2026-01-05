@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useRef } from "react";
-import { Download, Maximize2, Minimize2 } from "lucide-react";
+import { Download, Maximize2, Minimize2, ExternalLink, Upload } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 
 declare global {
   interface Window {
@@ -31,15 +32,32 @@ interface MicroreactFile {
   [key: string]: any;
 }
 
+interface MicroreactConfig {
+  localViewerUrl: string | null;
+  officialUrl: string;
+  uploadUrl: string;
+}
+
 interface Props {
   microreactData: MicroreactFile | string;
   title?: string;
+  analysisId?: number;
 }
 
-const MicroreactViewer: React.FC<Props> = ({ microreactData, title = "Phylogenetic Project" }) => {
+const MicroreactViewer: React.FC<Props> = ({ microreactData, title = "Phylogenetic Project", analysisId }) => {
   const [activeTab, setActiveTab] = useState("tree");
   const treeContainerRef = useRef<HTMLDivElement>(null);
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [config, setConfig] = useState<MicroreactConfig | null>(null);
+  const [showLocalViewer, setShowLocalViewer] = useState(false);
+
+  // Fetch Microreact config on mount
+  useEffect(() => {
+    fetch("/api/microreact/config")
+      .then(res => res.json())
+      .then(setConfig)
+      .catch(() => setConfig({ localViewerUrl: null, officialUrl: "https://microreact.org", uploadUrl: "https://microreact.org/upload" }));
+  }, []);
 
   const data: MicroreactFile =
     typeof microreactData === "string"
@@ -312,8 +330,65 @@ const MicroreactViewer: React.FC<Props> = ({ microreactData, title = "Phylogenet
     document.body.removeChild(element);
   };
 
+  // Open in local Microreact viewer
+  const openInLocalViewer = () => {
+    if (!config?.localViewerUrl || !analysisId) return;
+    
+    // Construct the URL with the microreact file endpoint
+    const microreactFileUrl = `${window.location.origin}/api/analyses/${analysisId}/microreact-file`;
+    const viewerUrl = `${config.localViewerUrl}?file=${encodeURIComponent(microreactFileUrl)}`;
+    
+    window.open(viewerUrl, '_blank');
+  };
+
   return (
     <div className="space-y-6">
+      {/* Upload to Microreact info */}
+      <Alert className="bg-blue-50 dark:bg-blue-950 border-blue-200 dark:border-blue-800">
+        <Upload className="h-4 w-4" />
+        <AlertDescription className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
+          <span className="text-sm">
+            {config?.localViewerUrl ? (
+              <>Open in local Microreact viewer or download the <strong>.microreact</strong> file for the official site.</>
+            ) : (
+              <>Download the <strong>.microreact</strong> file and upload it to the official Microreact website for advanced visualization features.</>
+            )}
+          </span>
+          <div className="flex gap-2 flex-wrap">
+            {config?.localViewerUrl && analysisId && (
+              <Button
+                size="sm"
+                variant="default"
+                onClick={openInLocalViewer}
+                className="gap-1"
+              >
+                <ExternalLink className="w-3 h-3" />
+                Open Local Viewer
+              </Button>
+            )}
+            <Button
+              size="sm"
+              variant={config?.localViewerUrl ? "outline" : "default"}
+              onClick={downloadMicroreactFile}
+              className="gap-1"
+            >
+              <Download className="w-3 h-3" />
+              Download .microreact
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              asChild
+            >
+              <a href={config?.uploadUrl || "https://microreact.org/upload"} target="_blank" rel="noopener noreferrer" className="gap-1">
+                <ExternalLink className="w-3 h-3" />
+                Microreact.org
+              </a>
+            </Button>
+          </div>
+        </AlertDescription>
+      </Alert>
+
       {/* Project Header */}
       <div className="space-y-2">
         <div className="flex items-center justify-between">
