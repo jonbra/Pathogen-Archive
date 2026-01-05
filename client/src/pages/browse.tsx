@@ -26,7 +26,7 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import type { Sequence } from "@shared/schema";
 
-type SortField = "sample_id" | "header" | "year" | "gene" | "genotype" | "length";
+type SortField = "sample_id" | "header" | "year" | "gene" | "genotype" | "country" | "outbreak" | "length";
 type SortDirection = "asc" | "desc";
 
 export default function BrowsePage() {
@@ -95,6 +95,14 @@ export default function BrowsePage() {
           case 'genotype':
             aVal = a.genotype || '';
             bVal = b.genotype || '';
+            break;
+          case 'country':
+            aVal = a.country || '';
+            bVal = b.country || '';
+            break;
+          case 'outbreak':
+            aVal = a.outbreak || '';
+            bVal = b.outbreak || '';
             break;
           case 'length':
             aVal = a.sequence.length;
@@ -234,6 +242,8 @@ export default function BrowsePage() {
               <SortableHeader field="year" label="Year" />
               <SortableHeader field="gene" label="Gene" />
               <SortableHeader field="genotype" label="Genotype" />
+              <SortableHeader field="country" label="Country" />
+              <SortableHeader field="outbreak" label="Outbreak" />
               <SortableHeader field="length" label="Length (bp)" />
               <TableHead className="text-right">Actions</TableHead>
             </TableRow>
@@ -248,12 +258,14 @@ export default function BrowsePage() {
                   <TableCell><div className="h-4 w-12 bg-muted animate-pulse rounded" /></TableCell>
                   <TableCell><div className="h-4 w-20 bg-muted animate-pulse rounded" /></TableCell>
                   <TableCell><div className="h-4 w-16 bg-muted animate-pulse rounded" /></TableCell>
+                  <TableCell><div className="h-4 w-16 bg-muted animate-pulse rounded" /></TableCell>
+                  <TableCell><div className="h-4 w-20 bg-muted animate-pulse rounded" /></TableCell>
                   <TableCell className="text-right"><div className="h-8 w-8 ml-auto bg-muted animate-pulse rounded" /></TableCell>
                 </TableRow>
               ))
             ) : displaySequences.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={7} className="text-center h-32 text-muted-foreground">
+                <TableCell colSpan={9} className="text-center h-32 text-muted-foreground">
                   No sequences found matching your criteria.
                 </TableCell>
               </TableRow>
@@ -281,6 +293,12 @@ export default function BrowsePage() {
                   </TableCell>
                   <TableCell className="text-sm" data-testid={`text-genotype-${seq.id}`}>
                     {seq.genotype || '—'}
+                  </TableCell>
+                  <TableCell className="text-sm" data-testid={`text-country-${seq.id}`}>
+                    {seq.country || '—'}
+                  </TableCell>
+                  <TableCell className="text-sm" data-testid={`text-outbreak-${seq.id}`}>
+                    {seq.outbreak || '—'}
                   </TableCell>
                   <TableCell className="font-mono text-sm text-muted-foreground" data-testid={`text-length-${seq.id}`}>
                     {seq.sequence.length.toLocaleString()}

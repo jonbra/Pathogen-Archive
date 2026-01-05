@@ -65,9 +65,20 @@ export function parseFASTA(content: string): ParsedFASTAEntry[] {
 }
 
 /**
- * Parse CSV with proper quote handling
+ * Detect delimiter (comma or semicolon) from content
+ */
+function detectDelimiter(content: string): string {
+  const firstLine = content.split(/[\r\n]/)[0] || '';
+  const semicolonCount = (firstLine.match(/;/g) || []).length;
+  const commaCount = (firstLine.match(/,/g) || []).length;
+  return semicolonCount > commaCount ? ';' : ',';
+}
+
+/**
+ * Parse CSV with proper quote handling (supports comma and semicolon delimiters)
  */
 export function parseCSV(content: string): string[][] {
+  const delimiter = detectDelimiter(content);
   const rows: string[][] = [];
   let currentRow: string[] = [];
   let currentField = "";
@@ -86,7 +97,7 @@ export function parseCSV(content: string): string[][] {
         // Toggle quote state
         insideQuotes = !insideQuotes;
       }
-    } else if (char === "," && !insideQuotes) {
+    } else if (char === delimiter && !insideQuotes) {
       // Field separator
       currentRow.push(currentField.trim());
       currentField = "";

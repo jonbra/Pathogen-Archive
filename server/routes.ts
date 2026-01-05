@@ -100,11 +100,11 @@ export async function registerRoutes(
         return {
           accession: entry.accession,
           sequence: entry.sequence,
-          sequenceId: meta['sequence_id'] || meta.sequenceid || undefined,
-          samplingDate: meta['sampling_date'] || meta['samplingdate'] || undefined,
-          country: meta.country || undefined,
+          sequenceId: meta['sequence_id'] || meta.sequenceid || meta.key || undefined,
+          samplingDate: meta['sampling_date'] || meta['samplingdate'] || meta['sample date'] || undefined,
+          country: meta.country || meta.origin || undefined,
           genotype: meta.genotype || undefined,
-          outbreak: meta.outbreak || undefined,
+          outbreak: meta.outbreak || meta['outbreak_variant'] || undefined,
           metadata: meta,
           filename: fastaFile.originalname
         };
